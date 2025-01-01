@@ -31,6 +31,7 @@ class PeerNetwork {
         this.onMessageReceivedCallback = null;
         this.onUserInfoUpdatedCallback = null;
         this.hasAnnouncedUser = new Set();
+        this.destroyed = false; // Track if peer was destroyed
     }
 
     /**
@@ -40,22 +41,30 @@ class PeerNetwork {
      */
     async initialize(userInfo) {
         this.userInfo = userInfo;
-        return new Promise((resolve, reject) => {
-            this.peer = new Peer(this.config);
+        if (!this.peer || this.destroyed) {
+            this.destroyed = false;
+            return new Promise((resolve, reject) => {
+                this.peer = new Peer(this.config);
 
-            this.peer.on('open', (id) => {
-                this.peerId = id;
-                this.setupEventListeners();
-                if (this.onNetworkReadyCallback) {
-                    this.onNetworkReadyCallback(id);
-                }
-                resolve(id);
-            });
+                this.peer.on('open', (id) => {
+                    this.peerId = id;
+                    this.setupEventListeners();
+                    if (this.onNetworkReadyCallback) {
+                        this.onNetworkReadyCallback(id);
+                    }
+                    resolve(id);
+                });
 
-            this.peer.on('error', (error) => {
-                reject(error);
+                this.peer.on('error', (error) => {
+                    // If the peer is destroyed or disconnected, try to reconnect
+                    if (error.type === 'peer-unavailable' && !this.destroyed) {
+                        this.peer.reconnect();
+                    }
+                    reject(error);
+                });
             });
-        });
+        }
+        return this.peerId;
     }
 
     /**
@@ -316,6 +325,7 @@ class PeerNetwork {
         this.connections.forEach((conn) => conn.close());
         this.connections.clear();
         if (this.peer) {
+            this.destroyed = true;
             this.peer.destroy();
         }
     }

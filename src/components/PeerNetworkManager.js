@@ -73,7 +73,7 @@ const PeerNetworkManager = () => {
                                 type="text"
                                 value={targetPeerId}
                                 onChange={(e) => setTargetPeerId(e.target.value)}
-                                placeholder="Enter peer ID to connect"
+                                placeholder="Enter peer ID"
                                 disabled={!isReady}
                             />
                             <button type="submit" disabled={!isReady}>
@@ -91,7 +91,7 @@ const PeerNetworkManager = () => {
                 </div>
 
                 <div className="peers-list">
-                    <h3>Connected Players ({connectedPeers.length + 1})</h3>
+                    <h3>Players ({connectedPeers.length + 1})</h3>
                     <ul>
                         <li 
                             className="current-user"

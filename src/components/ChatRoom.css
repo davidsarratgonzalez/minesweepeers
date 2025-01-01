@@ -44,4 +44,18 @@
 
 .message-form button:hover {
     background-color: #1976D2;
+}
+
+.message-form input:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+.message-form button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.message-form input:disabled::placeholder {
+    color: #999;
 } 

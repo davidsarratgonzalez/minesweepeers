@@ -23,8 +23,16 @@ const usePeerNetwork = (config = {}) => {
             setIsReady(true);
         } catch (error) {
             console.error('Failed to initialize peer network:', error);
+            // Try to reinitialize on error
+            setTimeout(() => initializeWithUser(userInfo), 1000);
         }
     }, [network]);
+
+    useEffect(() => {
+        if (userInfo && !peerId) {
+            initializeWithUser(userInfo);
+        }
+    }, [userInfo, peerId, initializeWithUser]);
 
     useEffect(() => {
         const initialize = async () => {
@@ -75,7 +83,8 @@ const usePeerNetwork = (config = {}) => {
     const disconnectFromNetwork = useCallback(() => {
         network.disconnect();
         setConnectedPeers([]);
-        setMessages([]);
+        setConnectedUsers(new Map());
+        setPeerId(null); // Clear peer ID to trigger reinitialization
     }, [network]);
 
     return {

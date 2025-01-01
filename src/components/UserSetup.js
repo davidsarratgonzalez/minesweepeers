@@ -21,7 +21,7 @@ const UserSetup = ({ onComplete }) => {
 
     return (
         <div className="user-setup">
-            <h2>Set Up Your Profile</h2>
+            <h2>Set up your profile</h2>
             <form onSubmit={handleSubmit}>
                 <div className="form-group">
                     <label htmlFor="username">Your Name</label>
@@ -53,7 +53,7 @@ const UserSetup = ({ onComplete }) => {
                 </div>
 
                 <button type="submit" className="submit-button" disabled={!name.trim()}>
-                    Join Network
+                    Ready to play!
                 </button>
             </form>
         </div>

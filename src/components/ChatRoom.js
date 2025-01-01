@@ -8,6 +8,7 @@ import './ChatRoom.css';
 const ChatRoom = ({ messages, sendMessage, connectedUsers, currentUser }) => {
     const [newMessage, setNewMessage] = useState('');
     const messagesEndRef = useRef(null);
+    const hasPeers = connectedUsers.size > 0;
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -32,7 +33,7 @@ const ChatRoom = ({ messages, sendMessage, connectedUsers, currentUser }) => {
                     <ChatMessage 
                         key={index} 
                         message={msg} 
-                        connectedUsers={connectedUsers || new Map()}
+                        connectedUsers={connectedUsers}
                         currentUser={currentUser}
                     />
                 ))}
@@ -43,9 +44,12 @@ const ChatRoom = ({ messages, sendMessage, connectedUsers, currentUser }) => {
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type a message..."
+                    placeholder={hasPeers ? "Type a message..." : "Connect to peers to chat"}
+                    disabled={!hasPeers}
                 />
-                <button type="submit">Send</button>
+                <button type="submit" disabled={!hasPeers}>
+                    Send
+                </button>
             </form>
         </div>
     );
