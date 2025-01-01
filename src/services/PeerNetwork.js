@@ -37,6 +37,7 @@ class PeerNetwork {
         this.onGameStartedCallback = null;
         this.onGameOverCallback = null;
         this.onCursorUpdateCallback = null;
+        this.outgoingConnections = new Set(); // Track connections we initiated
     }
 
     /**
@@ -102,20 +103,22 @@ class PeerNetwork {
                 });
             }
 
-            // Share current game config if we have it and we're not in a game
-            if (this.currentGameConfig && !this.currentGameState) {
-                conn.send({
-                    type: 'GAME_CONFIG',
-                    config: this.currentGameConfig
-                });
-            }
+            // Only share game config if we're being connected to (we're the "host")
+            if (!this.outgoingConnections.has(conn.peer)) {
+                if (this.currentGameConfig && !this.currentGameState) {
+                    conn.send({
+                        type: 'GAME_CONFIG',
+                        config: this.currentGameConfig
+                    });
+                }
 
-            // Share current game state if we're in an active game
-            if (this.currentGameState?.board) {
-                conn.send({
-                    type: 'GAME_STATE',
-                    state: this.currentGameState
-                });
+                // Share current game state if we're in an active game
+                if (this.currentGameState?.board) {
+                    conn.send({
+                        type: 'GAME_STATE',
+                        state: this.currentGameState
+                    });
+                }
             }
 
             this.sharePeerList(conn);
@@ -168,6 +171,7 @@ class PeerNetwork {
 
         conn.on('close', () => {
             this.connections.delete(conn.peer);
+            this.outgoingConnections.delete(conn.peer);
             this.connectedUsers.delete(conn.peer);
             this.pendingUserInfoRequests.delete(conn.peer);
             
@@ -272,13 +276,16 @@ class PeerNetwork {
      * @param {string} peerId - The ID of the peer to connect to
      * @returns {Promise<void>}
      */
-    async connectToPeer(peerId) {
-        if (peerId === this.peerId || this.connections.has(peerId)) {
-            return;
+    async connectToPeer(targetPeerId) {
+        try {
+            const conn = this.peer.connect(targetPeerId);
+            this.outgoingConnections.add(conn.peer); // Mark this as an outgoing connection
+            this.handleIncomingConnection(conn);
+            return conn;
+        } catch (error) {
+            console.error('Failed to connect to peer:', error);
+            throw error;
         }
-
-        const conn = this.peer.connect(peerId);
-        this.handleIncomingConnection(conn);
     }
 
     /**
@@ -363,6 +370,7 @@ class PeerNetwork {
             this.destroyed = true;
             this.peer.destroy();
         }
+        this.outgoingConnections.clear();
     }
 
     /**
