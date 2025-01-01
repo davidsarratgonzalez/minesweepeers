@@ -37,6 +37,13 @@ const ChatRoom = ({
         });
     }, [connectedUsers, currentUser.peerId, addSystemMessage]);
 
+    // Clear message input when chat becomes disabled
+    useEffect(() => {
+        if (!isEnabled) {
+            setNewMessage('');
+        }
+    }, [isEnabled]);
+
     const handleSubmit = (e) => {
         e.preventDefault();
         if (newMessage.trim()) {
