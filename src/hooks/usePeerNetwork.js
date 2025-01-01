@@ -16,6 +16,7 @@ const usePeerNetwork = (config = {}) => {
     const [messages, setMessages] = useState([]);
     const [gameConfig, setGameConfig] = useState(null);
     const [gameState, setGameState] = useState(null);
+    const [peerCursors, setPeerCursors] = useState({});
 
     const initializeWithUser = useCallback(async (userInfo) => {
         try {
@@ -88,6 +89,17 @@ const usePeerNetwork = (config = {}) => {
             setGameConfig(null);
         });
 
+        network.onCursorUpdate((peerId, position) => {
+            setPeerCursors(prev => {
+                if (position === null) {
+                    const newCursors = { ...prev };
+                    delete newCursors[peerId];
+                    return newCursors;
+                }
+                return { ...prev, [peerId]: position };
+            });
+        });
+
         return () => {
             // Clean up IMMEDIATELY on unmount
             network.currentGameState = null;
@@ -143,6 +155,10 @@ const usePeerNetwork = (config = {}) => {
         }
     }, [network]);
 
+    const broadcastCursorPosition = useCallback((position) => {
+        network.broadcastCursorPosition(position);
+    }, [network]);
+
     return {
         peerId,
         isReady,
@@ -159,7 +175,9 @@ const usePeerNetwork = (config = {}) => {
         gameState,
         startGame,
         updateGameState,
-        endGame
+        endGame,
+        peerCursors,
+        broadcastCursorPosition
     };
 };
 

@@ -15,8 +15,9 @@ import {
     placeMines 
 } from '../utils/minesweeperLogic';
 import './Minesweeper.css';
+import CursorOverlay from './CursorOverlay';
 
-const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) => {
+const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, onCursorMove, peerCursors, connectedUsers }) => {
     const [localBoard, setLocalBoard] = useState(null);
     const [gameStatus, setGameStatus] = useState(GAME_STATUS.PLAYING);
     const [flagsCount, setFlagsCount] = useState(0);
@@ -33,6 +34,8 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
     const [countdown, setCountdown] = useState(null);
     const timerRef = useRef(null);
     const gameTimerRef = useRef(null);
+    const gameContentRef = useRef(null);
+    const boardRef = useRef(null);
 
     // Initialize empty board
     useEffect(() => {
@@ -181,16 +184,21 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
     };
 
     const handleMouseMove = useCallback((e) => {
-        if (!isDragging) return;
-        
-        const newX = e.pageX - dragStart.x;
-        const newY = e.pageY - dragStart.y;
-        
-        if (containerRef.current) {
-            containerRef.current.scrollLeft = -newX;
-            containerRef.current.scrollTop = -newY;
+        if (!boardRef.current) return;
+
+        const rect = boardRef.current.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+
+        // Only share if cursor is within bounds
+        if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
+            onCursorMove({ x, y, isInCanvas: true });
         }
-    }, [isDragging, dragStart]);
+    }, [onCursorMove]);
+
+    const handleMouseLeave = useCallback(() => {
+        onCursorMove({ isInCanvas: false });
+    }, [onCursorMove]);
 
     const handleMouseUp = useCallback(() => {
         if (!isDragging) return;
@@ -258,6 +266,21 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
         }
     }, [networkBoard, gameStatus, handleGameOver, handleWin, localBoard, minesPlaced]);
 
+    // Add mouse move event listeners
+    useEffect(() => {
+        const content = gameContentRef.current;
+        if (content) {
+            content.addEventListener('mousemove', handleMouseMove);
+            content.addEventListener('mouseleave', handleMouseLeave);
+        }
+        return () => {
+            if (content) {
+                content.removeEventListener('mousemove', handleMouseMove);
+                content.removeEventListener('mouseleave', handleMouseLeave);
+            }
+        };
+    }, [handleMouseMove, handleMouseLeave]);
+
     return (
         <div className="minesweeper">
             <GameHeader 
@@ -273,13 +296,27 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
                 onMouseDown={handleMouseDown}
                 onScroll={handleScroll}
             >
-                <div className="game-content">
-                    <Board 
-                        board={localBoard}
-                        onCellClick={handleCellClick}
-                        onCellRightClick={handleCellRightClick}
-                        gameStatus={gameStatus}
-                    />
+                <div 
+                    ref={gameContentRef}
+                    className="game-content"
+                >
+                    <div 
+                        ref={boardRef}
+                        className="board-container"
+                        onMouseMove={handleMouseMove}
+                        onMouseLeave={() => onCursorMove({ isInCanvas: false })}
+                    >
+                        <Board 
+                            board={localBoard}
+                            onCellClick={handleCellClick}
+                            onCellRightClick={handleCellRightClick}
+                            gameStatus={gameStatus}
+                        />
+                        <CursorOverlay 
+                            cursors={peerCursors}
+                            connectedUsers={connectedUsers}
+                        />
+                    </div>
                 </div>
             </div>
             {gameStatus !== GAME_STATUS.PLAYING && (

@@ -28,7 +28,10 @@ const PeerNetworkManager = () => {
         gameState,
         startGame,
         updateGameState,
-        endGame
+        endGame,
+        network,
+        peerCursors,
+        broadcastCursorPosition
     } = usePeerNetwork();
     const [copyFeedback, setCopyFeedback] = useState(false);
     const [connectionError, setConnectionError] = useState('');
@@ -101,6 +104,10 @@ const PeerNetworkManager = () => {
         // Clear all game state immediately
         endGame();
         updateGameConfig(null);  // Clear game config too
+    };
+
+    const handleCursorMove = (position) => {
+        broadcastCursorPosition(position);
     };
 
     return (
@@ -176,6 +183,9 @@ const PeerNetworkManager = () => {
                         board={gameState.board}
                         onGameUpdate={handleGameUpdate}
                         onGameOver={handleGameOver}
+                        onCursorMove={handleCursorMove}
+                        peerCursors={peerCursors}
+                        connectedUsers={connectedUsers}
                     />
                 ) : (
                     <GameConfig 

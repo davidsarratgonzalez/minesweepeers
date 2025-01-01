@@ -52,4 +52,9 @@
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
+}
+
+.board-container {
+    position: relative;
+    display: inline-block; /* To wrap content tightly */
 } 

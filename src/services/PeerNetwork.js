@@ -36,6 +36,7 @@ class PeerNetwork {
         this.onGameBoardUpdatedCallback = null;
         this.onGameStartedCallback = null;
         this.onGameOverCallback = null;
+        this.onCursorUpdateCallback = null;
     }
 
     /**
@@ -155,6 +156,9 @@ class PeerNetwork {
                     break;
                 case 'GAME_OVER':
                     this.handleGameOver(data.reason);
+                    break;
+                case 'CURSOR_UPDATE':
+                    this.handleCursorUpdate(conn.peer, data.position);
                     break;
                 default:
                     console.warn('Unknown message type:', data.type);
@@ -569,6 +573,35 @@ class PeerNetwork {
 
     onGameOver(callback) {
         this.onGameOverCallback = callback;
+    }
+
+    broadcastCursorPosition(position) {
+        const message = {
+            type: 'CURSOR_UPDATE',
+            position
+        };
+
+        this.connections.forEach(conn => {
+            conn.send(message);
+        });
+    }
+
+    handleCursorUpdate(peerId, position) {
+        if (this.onCursorUpdateCallback) {
+            this.onCursorUpdateCallback(peerId, position);
+        }
+    }
+
+    onCursorUpdate(callback) {
+        this.onCursorUpdateCallback = callback;
+    }
+
+    handlePeerDisconnected(peerId) {
+        // ... existing disconnect handling
+        if (this.onCursorUpdateCallback) {
+            // Send null position to remove cursor
+            this.onCursorUpdateCallback(peerId, null);
+        }
     }
 }
 
