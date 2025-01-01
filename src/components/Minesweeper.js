@@ -3,7 +3,6 @@ import Board from './Board';
 import GameHeader from './GameHeader';
 import { CELL_STATUS, GAME_STATUS } from '../constants/gameTypes';
 import { 
-    createBoard, 
     revealCell, 
     toggleFlag, 
     countFlags, 
@@ -114,7 +113,6 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
 
         let newBoard;
         if (isFirstClick) {
-            // On first click, place mines and reveal cell
             newBoard = placeMines(localBoard, config.bombs, x, y);
             setMinesPlaced(true);
             setIsFirstClick(false);
@@ -123,16 +121,18 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
             newBoard = revealCell(localBoard, x, y);
         }
 
+        // Update local board first
         setLocalBoard(newBoard);
         
         // Send blueprint to peers
         const blueprint = createBoardBlueprint(newBoard);
         onGameUpdate(blueprint);
 
+        // Check win/lose conditions after board is updated
         if (newBoard[y][x].isMine) {
-            handleGameOver();
+            setTimeout(() => handleGameOver(), 0);
         } else if (checkWinCondition(newBoard)) {
-            handleWin();
+            setTimeout(() => handleWin(), 0);
         }
     };
 
@@ -233,7 +233,6 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
     // Update board when receiving updates from network
     useEffect(() => {
         if (localBoard && networkBoard) {
-            // Only apply network updates if mines are placed or if receiving initial mine placement
             const updatedBoard = applyBoardBlueprint(localBoard, networkBoard);
             
             // Check if this update contains mine placements
@@ -246,10 +245,11 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
                 setIsFirstClick(false);
             }
 
+            // Update board first
             setLocalBoard(updatedBoard);
             setFlagsCount(countFlags(updatedBoard));
 
-            // Check for revealed mines only if mines are placed
+            // Then check win/lose conditions
             if (minesPlaced) {
                 const hasRevealedMine = updatedBoard.some(row => 
                     row.some(cell => 
@@ -258,9 +258,9 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
                 );
 
                 if (hasRevealedMine && gameStatus === GAME_STATUS.PLAYING) {
-                    handleGameOver();
+                    setTimeout(() => handleGameOver(), 0);
                 } else if (checkWinCondition(updatedBoard)) {
-                    handleWin();
+                    setTimeout(() => handleWin(), 0);
                 }
             }
         }

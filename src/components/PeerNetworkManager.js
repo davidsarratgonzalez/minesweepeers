@@ -5,7 +5,7 @@ import './PeerNetworkManager.css';
 import UserSetup from './UserSetup';
 import GameConfig from './GameConfig';
 import Minesweeper from './Minesweeper';
-import { createEmptyBoard, placeMines } from '../utils/minesweeperLogic';
+import { createEmptyBoard } from '../utils/minesweeperLogic';
 
 /**
  * Component for managing peer network connections and chat

@@ -27,14 +27,21 @@ const PRESETS = {
 
 const MIN_SIZE = 5;
 const MAX_SIZE = 50;
-const MIN_BOMBS = 1;
+const MIN_BOMBS = 2;
 const MAX_BOMBS_PERCENTAGE = 0.35; // Maximum 35% of cells can be bombs
 
 const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
     const [preset, setPreset] = useState('beginner');
     const [config, setConfig] = useState({
-        ...PRESETS.beginner,
-        selectedPreset: 'beginner'
+        selectedPreset: 'beginner',
+        width: MIN_SIZE,      // Default minimum
+        height: MIN_SIZE,     // Default minimum
+        bombs: MIN_BOMBS,     // Default minimum
+        timer: {
+            enabled: true,
+            minutes: 5,
+            seconds: 0
+        }
     });
     const [errors, setErrors] = useState({});
     const [inputValues, setInputValues] = useState({
@@ -63,36 +70,37 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
 
     const validateConfig = (newConfig) => {
         const errors = {};
-        const totalCells = newConfig.width * newConfig.height;
-        const maxBombs = Math.min(
-            Math.floor(totalCells * MAX_BOMBS_PERCENTAGE),
-            totalCells - 9
-        );
+        const width = parseInt(newConfig.width);
+        const height = parseInt(newConfig.height);
+        const bombs = parseInt(newConfig.bombs);
+        const minutes = parseInt(newConfig.timer.minutes);
+        const seconds = parseInt(newConfig.timer.seconds);
 
-        // Only validate if there's a value
-        if (newConfig.width) {
-            if (newConfig.width < MIN_SIZE) errors.width = `Width must be at least ${MIN_SIZE}`;
-            if (newConfig.width > MAX_SIZE) errors.width = `Width must be at most ${MAX_SIZE}`;
+        // Allow empty values in inputs
+        if (newConfig.width && (isNaN(width) || width < MIN_SIZE || width > MAX_SIZE)) {
+            errors.width = `Width must be between ${MIN_SIZE} and ${MAX_SIZE}`;
         }
-        if (newConfig.height) {
-            if (newConfig.height < MIN_SIZE) errors.height = `Height must be at least ${MIN_SIZE}`;
-            if (newConfig.height > MAX_SIZE) errors.height = `Height must be at most ${MAX_SIZE}`;
+
+        if (newConfig.height && (isNaN(height) || height < MIN_SIZE || height > MAX_SIZE)) {
+            errors.height = `Height must be between ${MIN_SIZE} and ${MAX_SIZE}`;
         }
-        if (newConfig.bombs) {
-            if (newConfig.bombs < MIN_BOMBS) {
-                errors.bombs = `Must have at least ${MIN_BOMBS} bomb`;
-            } else if (newConfig.bombs > maxBombs) {
-                errors.bombs = `Maximum ${maxBombs} bombs allowed for this board size`;
+
+        if (width && height) {
+            const maxBombs = Math.floor(width * height * MAX_BOMBS_PERCENTAGE);
+            if (newConfig.bombs && (isNaN(bombs) || bombs < MIN_BOMBS || bombs > maxBombs)) {
+                errors.bombs = `Bombs must be between ${MIN_BOMBS} and ${maxBombs}`;
             }
         }
 
         if (newConfig.timer.enabled) {
-            if (newConfig.timer.minutes < 0) errors.minutes = "Minutes can't be negative";
-            if (newConfig.timer.minutes > 99) errors.minutes = "Maximum 99 minutes allowed";
-            if (newConfig.timer.seconds < 0) errors.seconds = "Seconds can't be negative";
-            if (newConfig.timer.seconds > 59) errors.seconds = "Maximum 59 seconds allowed";
-            if (newConfig.timer.minutes === 0 && newConfig.timer.seconds === 0) {
-                errors.timer = "Timer must be greater than 0";
+            if (newConfig.timer.minutes && (isNaN(minutes) || minutes < 0 || minutes > 99)) {
+                errors.minutes = 'Minutes must be between 0 and 99';
+            }
+            if (newConfig.timer.seconds && (isNaN(seconds) || seconds < 0 || seconds > 59)) {
+                errors.seconds = 'Seconds must be between 0 and 59';
+            }
+            if (!minutes && !seconds) {
+                errors.timer = 'Timer must have a value';
             }
         }
 
@@ -124,44 +132,60 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
     };
 
     const handleConfigChange = (field, value) => {
-        let newInputValues = { ...inputValues };
-        let newConfig = { ...config };
-
-        // Update input values first
-        if (field === 'timer.enabled') {
-            newConfig.timer = { ...newConfig.timer, enabled: value };
-        } else if (field === 'timer.minutes' || field === 'timer.seconds') {
+        let newConfig;
+        if (field.includes('.')) {
             const [parent, child] = field.split('.');
-            newInputValues[child] = value;
-            const parsedValue = value === '' ? 0 : parseInt(value);
-            if (!isNaN(parsedValue)) {
-                newConfig[parent] = { ...newConfig[parent], [child]: parsedValue };
-            }
+            newConfig = {
+                ...config,
+                [parent]: {
+                    ...config[parent],
+                    [child]: value || (child === 'minutes' || child === 'seconds' ? 0 : value)
+                }
+            };
         } else {
-            newInputValues[field] = value;
-            const parsedValue = value === '' ? 0 : parseInt(value);
-            if (!isNaN(parsedValue)) {
-                newConfig[field] = parsedValue;
-            }
+            newConfig = {
+                ...config,
+                [field]: value || (
+                    field === 'width' ? MIN_SIZE :
+                    field === 'height' ? MIN_SIZE :
+                    field === 'bombs' ? MIN_BOMBS :
+                    value
+                )
+            };
         }
 
-        // Set as custom preset when modifying values
-        if (field !== 'timer.enabled') {
-            newConfig.selectedPreset = 'custom';
-            setPreset('custom');
-        }
+        setInputValues(prev => ({
+            ...prev,
+            [field.includes('.') ? field.split('.')[1] : field]: value
+        }));
 
-        setInputValues(newInputValues);
-        setConfig(newConfig);
-        onConfigChange(newConfig);
+        const newErrors = validateConfig(newConfig);
+        setErrors(newErrors);
+        
+        // Only update if there are no errors
+        if (Object.keys(newErrors).length === 0) {
+            setConfig(newConfig);
+            onConfigChange?.(newConfig);
+        }
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const validationErrors = validateConfig(config);
-        if (Object.keys(validationErrors).length === 0) {
-            onStartGame(config);
-        }
+        
+        // Convert empty strings to numbers for submission
+        const finalConfig = {
+            ...config,
+            width: parseInt(config.width) || MIN_SIZE,
+            height: parseInt(config.height) || MIN_SIZE,
+            bombs: parseInt(config.bombs) || MIN_BOMBS,
+            timer: {
+                ...config.timer,
+                minutes: parseInt(config.timer.minutes) || 0,
+                seconds: parseInt(config.timer.seconds) || 0
+            }
+        };
+
+        onStartGame(finalConfig);
     };
 
     const maxBombs = Math.min(
