@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/peer-minesweeper/static/css/main.63628c26.css",
+    "main.js": "/peer-minesweeper/static/js/main.262daf21.js",
+    "static/js/488.16dd094b.chunk.js": "/peer-minesweeper/static/js/488.16dd094b.chunk.js",
+    "index.html": "/peer-minesweeper/index.html",
+    "main.63628c26.css.map": "/peer-minesweeper/static/css/main.63628c26.css.map",
+    "main.262daf21.js.map": "/peer-minesweeper/static/js/main.262daf21.js.map",
+    "488.16dd094b.chunk.js.map": "/peer-minesweeper/static/js/488.16dd094b.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.63628c26.css",
+    "static/js/main.262daf21.js"
+  ]
+}
