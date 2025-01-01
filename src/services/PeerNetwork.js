@@ -60,8 +60,10 @@ class PeerNetwork {
                 });
 
                 this.peer.on('error', (error) => {
-                    // If the peer is destroyed or disconnected, try to reconnect
-                    if (error.type === 'peer-unavailable' && !this.destroyed) {
+                    // Only try to reconnect if the peer is destroyed and it's not a "peer unavailable" error
+                    if (error.type === 'peer-unavailable') {
+                        console.warn('Peer unavailable:', error.message);
+                    } else if (this.destroyed) {
                         this.peer.reconnect();
                     }
                     reject(error);

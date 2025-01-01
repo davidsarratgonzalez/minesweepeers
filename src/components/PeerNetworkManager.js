@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import usePeerNetwork from '../hooks/usePeerNetwork';
 import ChatRoom from './ChatRoom';
 import './PeerNetworkManager.css';
@@ -31,20 +31,38 @@ const PeerNetworkManager = () => {
         endGame
     } = usePeerNetwork();
     const [copyFeedback, setCopyFeedback] = useState(false);
+    const [connectionError, setConnectionError] = useState('');
+
+    useEffect(() => {
+        // Remove this effect since we want to allow solo play
+        // if (gameState && connectedPeers.length === 0) {
+        //     endGame('All players disconnected');
+        // }
+    }, [connectedPeers.length, gameState, endGame]);
 
     if (!userInfo) {
         return <UserSetup onComplete={initializeWithUser} />;
     }
 
-    const handleConnect = (e) => {
+    const handleConnect = async (e) => {
         e.preventDefault();
         if (targetPeerId.trim()) {
-            connectToPeer(targetPeerId.trim());
-            setTargetPeerId('');
+            try {
+                await connectToPeer(targetPeerId.trim());
+                setTargetPeerId('');
+                setConnectionError('');
+            } catch (error) {
+                setConnectionError('Failed to connect to peer');
+                setTimeout(() => setConnectionError(''), 3000);
+            }
         }
     };
 
     const handleDisconnect = () => {
+        // Don't end game on disconnect
+        // if (gameState) {
+        //     endGame('Player disconnected');
+        // }
         disconnectFromNetwork();
     };
 
@@ -69,9 +87,12 @@ const PeerNetworkManager = () => {
     };
 
     const handleGameUpdate = (newBoard) => {
+        if (!gameState) return;
+        
         updateGameState({
             ...gameState,
-            board: newBoard
+            board: newBoard,
+            lastUpdate: Date.now()
         });
     };
 
@@ -108,6 +129,11 @@ const PeerNetworkManager = () => {
                             <button type="submit" disabled={!isReady}>
                                 Connect
                             </button>
+                            {connectionError && (
+                                <div className="connection-error">
+                                    {connectionError}
+                                </div>
+                            )}
                         </form>
                     ) : (
                         <button 

@@ -71,18 +71,32 @@ export const revealCell = (board, x, y) => {
         return board;
     }
 
+    // Create a new board copy
     const newBoard = board.map(row => row.map(cell => ({...cell})));
-    newBoard[y][x].status = CELL_STATUS.REVEALED;
+    
+    // Function to reveal a single cell
+    const reveal = (x, y) => {
+        if (!isValidCell(newBoard, x, y) || 
+            newBoard[y][x].status === CELL_STATUS.REVEALED || 
+            newBoard[y][x].status === CELL_STATUS.FLAGGED) {
+            return;
+        }
 
-    // If cell is empty, reveal adjacent cells
-    if (newBoard[y][x].adjacentMines === 0 && !newBoard[y][x].isMine) {
-        for (let dy = -1; dy <= 1; dy++) {
-            for (let dx = -1; dx <= 1; dx++) {
-                revealCell(newBoard, x + dx, y + dy);
+        newBoard[y][x].status = CELL_STATUS.REVEALED;
+
+        // If it's an empty cell, reveal neighbors
+        if (newBoard[y][x].adjacentMines === 0 && !newBoard[y][x].isMine) {
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    reveal(x + dx, y + dy);
+                }
             }
         }
-    }
+    };
 
+    // Start revealing from the clicked cell
+    reveal(x, y);
     return newBoard;
 };
 
@@ -110,7 +124,10 @@ export const revealAllMines = (board) => {
     return board.map(row => 
         row.map(cell => ({
             ...cell,
-            status: cell.isMine ? CELL_STATUS.REVEALED : cell.status
+            // Reveal all mines, even if they were flagged
+            status: cell.isMine || cell.status === CELL_STATUS.REVEALED 
+                ? CELL_STATUS.REVEALED 
+                : cell.status
         }))
     );
 };
@@ -136,4 +153,38 @@ export const countFlags = (board) => {
             rowCount + (cell.status === CELL_STATUS.FLAGGED ? 1 : 0)
         , 0)
     , 0);
+};
+
+/**
+ * Cell blueprint for network synchronization
+ */
+export const createCellBlueprint = (cell) => ({
+    status: cell.status,
+    value: cell.isMine ? 'mine' : (cell.status === CELL_STATUS.REVEALED ? cell.adjacentMines : null)
+});
+
+/**
+ * Create board blueprint for network sync
+ */
+export const createBoardBlueprint = (board) => {
+    return board.map(row => 
+        row.map(cell => createCellBlueprint(cell))
+    );
+};
+
+/**
+ * Apply board blueprint from network
+ */
+export const applyBoardBlueprint = (board, blueprint) => {
+    return board.map((row, y) => 
+        row.map((cell, x) => ({
+            ...cell,
+            status: blueprint[y][x].status,
+            // Only update revealed state if the blueprint shows it
+            ...(blueprint[y][x].status === CELL_STATUS.REVEALED && {
+                isMine: blueprint[y][x].value === 'mine',
+                adjacentMines: blueprint[y][x].value === 'mine' ? 0 : blueprint[y][x].value
+            })
+        }))
+    );
 }; 

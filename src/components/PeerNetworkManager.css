@@ -153,9 +153,47 @@
 
 .game-container {
     flex: 1;
+    position: relative;
+    overflow: hidden;
+    background-color: #fafafa;
+}
+
+.game-scroll-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: auto;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: grab;
+    user-select: none;
+}
+
+.game-scroll-container.dragging {
+    cursor: grabbing;
+}
+
+.game-content {
     padding: 20px;
-    background-color: #fafafa;
+    min-width: 100%;
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.connection-error {
+    color: #f44336;
+    font-size: 14px;
+    margin-top: 8px;
+    text-align: center;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 } 

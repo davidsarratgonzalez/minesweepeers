@@ -5,13 +5,13 @@ import './Cell.css';
 const Cell = ({ cell, onClick, onRightClick, gameStatus }) => {
     const getCellContent = () => {
         if (cell.status === CELL_STATUS.FLAGGED) {
-            return '🚩';
+            return <i className="fa-solid fa-flag" />;
         }
         if (cell.status === CELL_STATUS.HIDDEN) {
             return '';
         }
         if (cell.isMine) {
-            return '💣';
+            return <i className="fa-solid fa-bomb" />;
         }
         return cell.adjacentMines || '';
     };

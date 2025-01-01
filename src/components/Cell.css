@@ -25,6 +25,22 @@
     background-color: #ff4444;
 }
 
+.cell i {
+    font-size: 14px;
+}
+
+.cell .fa-flag {
+    color: #f44336;
+}
+
+.cell .fa-bomb {
+    color: #333;
+}
+
+.cell.revealed.mine .fa-bomb {
+    color: white;
+}
+
 .cell.adjacent-1 { color: #2196F3; }
 .cell.adjacent-2 { color: #4CAF50; }
 .cell.adjacent-3 { color: #f44336; }
