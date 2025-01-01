@@ -126,4 +126,16 @@
 .start-button:disabled {
     background-color: #ccc;
     cursor: not-allowed;
+}
+
+.error-container {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.error {
+    color: #ff4444;
+    font-size: 0.9em;
 } 

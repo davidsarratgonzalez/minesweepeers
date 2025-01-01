@@ -70,47 +70,51 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
 
     const validateConfig = (newConfig) => {
         const errors = {};
-        const width = parseInt(newConfig.width);
-        const height = parseInt(newConfig.height);
+        const width = parseInt(newConfig.width || MIN_SIZE.toString());
+        const height = parseInt(newConfig.height || MIN_SIZE.toString());
         const bombs = parseInt(newConfig.bombs);
         const minutes = parseInt(newConfig.timer.minutes);
         const seconds = parseInt(newConfig.timer.seconds);
 
-        // Only validate if there's a value (don't validate empty inputs)
+        // Validate width if provided
         if (newConfig.width !== '') {
             if (isNaN(width) || width < MIN_SIZE || width > MAX_SIZE) {
                 errors.width = `Width must be between ${MIN_SIZE} and ${MAX_SIZE}`;
             }
         }
 
+        // Validate height if provided
         if (newConfig.height !== '') {
             if (isNaN(height) || height < MIN_SIZE || height > MAX_SIZE) {
                 errors.height = `Height must be between ${MIN_SIZE} and ${MAX_SIZE}`;
             }
         }
 
-        if (newConfig.bombs !== '') {
-            if (width && height) {
-                const maxBombs = Math.floor(width * height * MAX_BOMBS_PERCENTAGE);
-                if (isNaN(bombs) || bombs < MIN_BOMBS || bombs > maxBombs) {
-                    errors.bombs = `Bombs must be between ${MIN_BOMBS} and ${maxBombs}`;
-                }
+        // Only validate bombs if there are no size errors
+        if (newConfig.bombs !== '' && !errors.width && !errors.height) {
+            const maxBombs = Math.floor(width * height * MAX_BOMBS_PERCENTAGE);
+            if (isNaN(bombs) || bombs < MIN_BOMBS || bombs > maxBombs) {
+                errors.bombs = `Bombs must be between ${MIN_BOMBS} and ${maxBombs}`;
             }
         }
 
         if (newConfig.timer.enabled) {
             if (newConfig.timer.minutes !== '') {
                 if (isNaN(minutes) || minutes < 0 || minutes > 99) {
-                    errors.minutes = 'Minutes must be between 0 and 99';
+                    errors.timer = 'Minutes must be between 0 and 99';
                 }
             }
             if (newConfig.timer.seconds !== '') {
                 if (isNaN(seconds) || seconds < 0 || seconds > 59) {
-                    errors.seconds = 'Seconds must be between 0 and 59';
+                    errors.timer = 'Seconds must be between 0 and 59';
                 }
             }
-            if (newConfig.timer.minutes === '' && newConfig.timer.seconds === '') {
-                errors.timer = 'Timer must have a value';
+            
+            const totalSeconds = (parseInt(newConfig.timer.minutes || '0') * 60) + 
+                                parseInt(newConfig.timer.seconds || '0');
+            
+            if (totalSeconds <= 0) {
+                errors.timer = 'Timer must be over 0 seconds';
             }
         }
 
@@ -221,9 +225,11 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
         onStartGame(finalConfig);
     };
 
+    const width = parseInt(config.width) || MIN_SIZE;
+    const height = parseInt(config.height) || MIN_SIZE;
     const maxBombs = Math.min(
-        Math.floor(config.width * config.height * MAX_BOMBS_PERCENTAGE),
-        config.width * config.height - 9
+        Math.floor(width * height * MAX_BOMBS_PERCENTAGE),
+        width * height - 9
     );
 
     return (
@@ -259,27 +265,27 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
                             Width:
                             <input
                                 type="number"
-                                min={MIN_SIZE}
-                                max={MAX_SIZE}
                                 value={inputValues.width}
                                 onChange={(e) => handleConfigChange('width', e.target.value)}
                                 placeholder={MIN_SIZE.toString()}
                             />
-                            {errors.width && <span className="error">{errors.width}</span>}
                         </label>
                         <label>
                             Height:
                             <input
                                 type="number"
-                                min={MIN_SIZE}
-                                max={MAX_SIZE}
                                 value={inputValues.height}
                                 onChange={(e) => handleConfigChange('height', e.target.value)}
                                 placeholder={MIN_SIZE.toString()}
                             />
-                            {errors.height && <span className="error">{errors.height}</span>}
                         </label>
                     </div>
+                    {(errors.width || errors.height) && (
+                        <div className="error-container">
+                            {errors.width && <div className="error">{errors.width}</div>}
+                            {errors.height && <div className="error">{errors.height}</div>}
+                        </div>
+                    )}
                 </div>
 
                 <div className="config-group">
@@ -289,18 +295,18 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
                             Number of bombs:
                             <input
                                 type="number"
-                                min={MIN_BOMBS}
-                                max={maxBombs}
                                 value={inputValues.bombs}
                                 onChange={(e) => handleConfigChange('bombs', e.target.value)}
                                 placeholder={MIN_BOMBS.toString()}
                             />
-                            {errors.bombs && <span className="error">{errors.bombs}</span>}
                         </label>
                     </div>
-                    <div className="info-text">
-                        Maximum bombs: {maxBombs} ({Math.round(MAX_BOMBS_PERCENTAGE * 100)}% of cells)
-                    </div>
+                    {!errors.width && !errors.height && (
+                        <div className="info-text">
+                            Maximum bombs: {maxBombs} ({Math.round(MAX_BOMBS_PERCENTAGE * 100)}% of cells)
+                        </div>
+                    )}
+                    {errors.bombs && <div className="error">{errors.bombs}</div>}
                 </div>
 
                 <div className="config-group">
@@ -321,8 +327,6 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
                                 Minutes:
                                 <input
                                     type="number"
-                                    min="0"
-                                    max="99"
                                     value={inputValues.minutes}
                                     onChange={(e) => handleConfigChange('timer.minutes', e.target.value)}
                                     placeholder="0"
@@ -333,8 +337,6 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
                                 Seconds:
                                 <input
                                     type="number"
-                                    min="0"
-                                    max="59"
                                     value={inputValues.seconds}
                                     onChange={(e) => handleConfigChange('timer.seconds', e.target.value)}
                                     placeholder="0"
