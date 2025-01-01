@@ -21,6 +21,7 @@ const PeerNetworkManager = () => {
         disconnectFromNetwork,
         initializeWithUser
     } = usePeerNetwork();
+    const [copyFeedback, setCopyFeedback] = useState(false);
 
     if (!userInfo) {
         return <UserSetup onComplete={initializeWithUser} />;
@@ -40,6 +41,8 @@ const PeerNetworkManager = () => {
 
     const handleCopyPeerId = () => {
         navigator.clipboard.writeText(peerId);
+        setCopyFeedback(true);
+        setTimeout(() => setCopyFeedback(false), 2000);
     };
 
     const getUserName = (peerId) => {
@@ -55,11 +58,11 @@ const PeerNetworkManager = () => {
                         <div className="peer-id">{peerId || 'Initializing...'}</div>
                     </div>
                     <button 
-                        className="copy-button" 
+                        className={`copy-button ${copyFeedback ? 'copied' : ''}`}
                         onClick={handleCopyPeerId}
                         title="Copy Peer ID"
                     >
-                        📋
+                        <i className={`fa-regular ${copyFeedback ? 'fa-circle-check' : 'fa-copy'}`}></i>
                     </button>
                 </div>
 
