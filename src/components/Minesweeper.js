@@ -321,7 +321,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
             </div>
             {gameStatus !== GAME_STATUS.PLAYING && (
                 <div className="game-over-overlay">
-                    <h2>{gameStatus === GAME_STATUS.WON ? 'You Won!' : 'Game Over!'}</h2>
+                    <h2>{gameStatus === GAME_STATUS.WON ? 'You won!' : 'Game over!'}</h2>
                     {countdown && (
                         <p className="countdown">Returning to lobby in {countdown}...</p>
                     )}

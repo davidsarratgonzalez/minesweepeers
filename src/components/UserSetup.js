@@ -21,10 +21,10 @@ const UserSetup = ({ onComplete }) => {
 
     return (
         <div className="user-setup">
-            <h2>Set up your profile</h2>
+            <h1 data-testid="user-setup-header">Peer Minesweeper</h1>
             <form onSubmit={handleSubmit}>
                 <div className="form-group">
-                    <label htmlFor="username">Your Name</label>
+                    <label htmlFor="username">Your name</label>
                     <input
                         id="username"
                         type="text"
@@ -37,7 +37,7 @@ const UserSetup = ({ onComplete }) => {
                 </div>
 
                 <div className="form-group">
-                    <label>Choose Your Color</label>
+                    <label>Choose your color</label>
                     <div className="color-options">
                         {PEER_COLORS.map(color => (
                             <button

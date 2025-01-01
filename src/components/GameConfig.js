@@ -234,7 +234,7 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
 
     return (
         <div className="game-config">
-            <h2>Minesweeper Setup</h2>
+            <h2>Game rules</h2>
             
             <div className="presets">
                 <h3>Presets</h3>
@@ -259,7 +259,7 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
 
             <form onSubmit={handleSubmit} className="config-form">
                 <div className="config-group">
-                    <h3>Board Size</h3>
+                    <h3>Board size</h3>
                     <div className="input-row">
                         <label>
                             Width:
