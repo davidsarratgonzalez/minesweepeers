@@ -110,6 +110,12 @@ const PeerNetworkManager = () => {
         broadcastCursorPosition(position);
     };
 
+    const handleLeaveGame = () => {
+        // Use the same logic as disconnect but without network disconnect
+        endGame(null, false);
+        updateGameConfig(null);
+    };
+
     return (
         <div className="peer-network-manager">
             <div className="network-info">
@@ -127,31 +133,33 @@ const PeerNetworkManager = () => {
                 </div>
 
                 <div className="connection-controls">
-                    {connectedPeers.length === 0 ? (
-                        <form className="connect-form" onSubmit={handleConnect}>
-                            <input
-                                type="text"
-                                value={targetPeerId}
-                                onChange={(e) => setTargetPeerId(e.target.value)}
-                                placeholder="Enter peer ID"
-                                disabled={!isReady}
-                            />
-                            <button type="submit" disabled={!isReady}>
-                                Connect
-                            </button>
-                            {connectionError && (
-                                <div className="connection-error">
-                                    {connectionError}
-                                </div>
-                            )}
-                        </form>
-                    ) : (
+                    {gameState && connectedPeers.length === 0 ? (
+                        <button 
+                            className="disconnect-button"
+                            onClick={handleLeaveGame}
+                        >
+                            Leave game
+                        </button>
+                    ) : connectedPeers.length > 0 ? (
                         <button 
                             className="disconnect-button"
                             onClick={handleDisconnect}
                         >
                             Disconnect
                         </button>
+                    ) : (
+                        <form className="connect-form" onSubmit={handleConnect}>
+                            <input
+                                type="text"
+                                value={targetPeerId}
+                                onChange={(e) => setTargetPeerId(e.target.value)}
+                                placeholder="Enter Peer ID"
+                            />
+                            <button type="submit">Connect</button>
+                        </form>
+                    )}
+                    {connectionError && (
+                        <div className="connection-error">{connectionError}</div>
                     )}
                 </div>
 
