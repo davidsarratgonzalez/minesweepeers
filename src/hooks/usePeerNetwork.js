@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import PeerNetwork from '../services/PeerNetwork';
 
 /**
@@ -16,6 +16,7 @@ const usePeerNetwork = (config = {}) => {
     const [messages, setMessages] = useState([]);
     const [gameConfig, setGameConfig] = useState(null);
     const [gameState, setGameState] = useState(null);
+    const cleanupTimerRef = useRef(null);
 
     const initializeWithUser = useCallback(async (userInfo) => {
         try {
@@ -78,17 +79,33 @@ const usePeerNetwork = (config = {}) => {
         });
 
         network.onGameOver(() => {
-            // Clear game state immediately
+            // Clear the previous timer if it exists
+            if (cleanupTimerRef.current) {
+                clearTimeout(cleanupTimerRef.current);
+                cleanupTimerRef.current = null;
+            }
+
+            // Clear network state immediately
             network.currentGameState = null;
             network.currentGameConfig = null;
+            network.gameConfig = null;
             
-            // But let the UI show the game over state for 3 seconds
-            setTimeout(() => {
+            // Set the new timer
+            cleanupTimerRef.current = setTimeout(() => {
                 setGameState(null);
+                setGameConfig(null);
+                cleanupTimerRef.current = null;
             }, 3000);
         });
 
         return () => {
+            // Clean up timer on unmount
+            if (cleanupTimerRef.current) {
+                clearTimeout(cleanupTimerRef.current);
+            }
+            network.currentGameState = null;
+            network.currentGameConfig = null;
+            network.gameConfig = null;
             network.disconnect();
         };
     }, [network]);
@@ -126,14 +143,20 @@ const usePeerNetwork = (config = {}) => {
     }, [network]);
 
     const endGame = useCallback((reason = null, propagate = true) => {
-        // Clear network state immediately
+        // Clear any existing cleanup timer
+        if (cleanupTimerRef.current) {
+            clearTimeout(cleanupTimerRef.current);
+            cleanupTimerRef.current = null;
+        }
+
+        // Clear all state immediately
         network.currentGameState = null;
         network.currentGameConfig = null;
+        network.gameConfig = null;
         
-        // Clear local state
         setGameState(null);
+        setGameConfig(null);
         
-        // Only broadcast if propagate is true
         if (propagate) {
             network.broadcastGameOver(reason);
         }

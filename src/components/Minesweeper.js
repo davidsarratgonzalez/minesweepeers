@@ -31,6 +31,8 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
     const [isFirstClick, setIsFirstClick] = useState(true);
     const [minesPlaced, setMinesPlaced] = useState(false);
     const [countdown, setCountdown] = useState(null);
+    const timerRef = useRef(null);
+    const gameTimerRef = useRef(null);
 
     // Initialize empty board
     useEffect(() => {
@@ -41,22 +43,37 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
         }
     }, [config.width, config.height, localBoard]);
 
+    // Clean up ALL timers when unmounting
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+            if (gameTimerRef.current) {
+                clearInterval(gameTimerRef.current);
+            }
+        };
+    }, []);
+
     // Handle timer
     const handleGameOver = useCallback(() => {
         setGameStatus(GAME_STATUS.LOST);
         const revealedBoard = revealAllMines(localBoard);
         setLocalBoard(revealedBoard);
         
-        // Send blueprint to peers with all mines revealed
         const blueprint = createBoardBlueprint(revealedBoard);
         onGameUpdate(blueprint);
         
-        // Start countdown
+        // Store timer reference so we can clear it
         setCountdown(3);
-        const timer = setInterval(() => {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+        }
+        timerRef.current = setInterval(() => {
             setCountdown(prev => {
                 if (prev <= 1) {
-                    clearInterval(timer);
+                    clearInterval(timerRef.current);
+                    timerRef.current = null;
                     onGameOver();
                     return null;
                 }
@@ -66,12 +83,12 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
     }, [localBoard, onGameUpdate, onGameOver]);
 
     useEffect(() => {
-        let timer;
         if (gameStatus === GAME_STATUS.PLAYING) {
-            timer = setInterval(() => {
+            gameTimerRef.current = setInterval(() => {
                 if (config.timer.enabled) {
                     setTimeLeft(prev => {
                         if (prev <= 0) {
+                            clearInterval(gameTimerRef.current);
                             handleGameOver();
                             return 0;
                         }
@@ -82,7 +99,11 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
                 }
             }, 1000);
         }
-        return () => clearInterval(timer);
+        return () => {
+            if (gameTimerRef.current) {
+                clearInterval(gameTimerRef.current);
+            }
+        };
     }, [gameStatus, config.timer.enabled, handleGameOver]);
 
     const handleCellClick = (x, y) => {
@@ -133,12 +154,15 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
         const blueprint = createBoardBlueprint(revealedBoard);
         onGameUpdate(blueprint);
         
-        // Start countdown
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+        }
         setCountdown(3);
-        const timer = setInterval(() => {
+        timerRef.current = setInterval(() => {
             setCountdown(prev => {
                 if (prev <= 1) {
-                    clearInterval(timer);
+                    clearInterval(timerRef.current);
+                    timerRef.current = null;
                     onGameOver();
                     return null;
                 }

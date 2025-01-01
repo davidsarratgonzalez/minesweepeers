@@ -59,11 +59,9 @@ const PeerNetworkManager = () => {
     };
 
     const handleDisconnect = () => {
-        // Immediately end local game state without notifying peers
-        if (gameState) {
-            // Use local endGame without network propagation
-            endGame(null, false); // We'll need to modify endGame to accept a 'silent' parameter
-        }
+        // Clear game state immediately without any timers
+        endGame(null, false);
+        updateGameConfig(null);
         disconnectFromNetwork();
     };
 
@@ -79,6 +77,8 @@ const PeerNetworkManager = () => {
     };
 
     const handleStartGame = (config) => {
+        // Clear any existing game state immediately before starting new game
+        endGame(null, false);
         const initialBoard = createEmptyBoard(config.width, config.height);
         startGame(config, initialBoard);
     };
@@ -98,7 +98,9 @@ const PeerNetworkManager = () => {
     };
 
     const handleGameOver = () => {
+        // Clear all game state immediately
         endGame();
+        updateGameConfig(null);  // Clear game config too
     };
 
     return (
