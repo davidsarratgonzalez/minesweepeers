@@ -504,6 +504,10 @@ class PeerNetwork {
      * Broadcast game over to peers
      */
     broadcastGameOver(reason) {
+        // Clear our own game state first
+        this.currentGameState = null;
+        this.currentGameConfig = null;
+
         const message = {
             type: 'GAME_OVER',
             reason
@@ -534,6 +538,10 @@ class PeerNetwork {
     }
 
     handleGameOver(reason) {
+        // Clear the current game state immediately
+        this.currentGameState = null;
+        this.currentGameConfig = null;
+
         if (this.onGameOverCallback) {
             this.onGameOverCallback(reason);
         }
