@@ -37,9 +37,10 @@ const ChatRoom = ({
         });
     }, [connectedUsers, currentUser.peerId, addSystemMessage]);
 
-    // Clear message input when chat becomes disabled
+    // Reset notification tracker when chat is disabled (disconnected)
     useEffect(() => {
         if (!isEnabled) {
+            notificationTracker.current.reset();
             setNewMessage('');
         }
     }, [isEnabled]);
