@@ -20,7 +20,9 @@ const PeerNetworkManager = () => {
         messages,
         sendMessage,
         disconnectFromNetwork,
-        initializeWithUser
+        initializeWithUser,
+        gameConfig,
+        updateGameConfig
     } = usePeerNetwork();
     const [copyFeedback, setCopyFeedback] = useState(false);
 
@@ -53,7 +55,12 @@ const PeerNetworkManager = () => {
 
     const handleStartGame = (config) => {
         console.log('Starting game with config:', config);
+        updateGameConfig(config);
         // TODO: Implement game start logic
+    };
+
+    const handleConfigChange = (newConfig) => {
+        updateGameConfig(newConfig);
     };
 
     return (
@@ -91,7 +98,7 @@ const PeerNetworkManager = () => {
                             className="disconnect-button"
                             onClick={handleDisconnect}
                         >
-                            Disconnect All
+                            Disconnect
                         </button>
                     )}
                 </div>
@@ -118,7 +125,11 @@ const PeerNetworkManager = () => {
             </div>
 
             <div className="game-container">
-                <GameConfig onStartGame={handleStartGame} />
+                <GameConfig 
+                    onStartGame={handleStartGame}
+                    onConfigChange={handleConfigChange}
+                    initialConfig={gameConfig}
+                />
             </div>
 
             <div className="chat-container">

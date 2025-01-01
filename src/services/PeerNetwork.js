@@ -32,6 +32,7 @@ class PeerNetwork {
         this.onUserInfoUpdatedCallback = null;
         this.hasAnnouncedUser = new Set();
         this.destroyed = false; // Track if peer was destroyed
+        this.onGameConfigUpdatedCallback = null;
     }
 
     /**
@@ -101,6 +102,14 @@ class PeerNetwork {
                 users: Array.from(this.connectedUsers.entries())
             });
 
+            // Share current game config if we have it
+            if (this.currentGameConfig) {
+                conn.send({
+                    type: 'GAME_CONFIG',
+                    config: this.currentGameConfig
+                });
+            }
+
             this.sharePeerList(conn);
             
             if (this.onPeerConnectedCallback) {
@@ -127,6 +136,9 @@ class PeerNetwork {
                     if (this.onMessageReceivedCallback) {
                         this.onMessageReceivedCallback(data);
                     }
+                    break;
+                case 'GAME_CONFIG':
+                    this.handleGameConfig(data.config);
                     break;
             }
         });
@@ -391,6 +403,42 @@ class PeerNetwork {
     getUserColor(peerId) {
         const userInfo = this.connectedUsers.get(peerId);
         return userInfo ? userInfo.color.value : '#999';
+    }
+
+    /**
+     * Handle received game configuration
+     * @private
+     * @param {Object} config - The game configuration
+     */
+    handleGameConfig(config) {
+        this.currentGameConfig = config;
+        if (this.onGameConfigUpdatedCallback) {
+            this.onGameConfigUpdatedCallback(config);
+        }
+    }
+
+    /**
+     * Broadcast game configuration to all peers
+     * @param {Object} config - The game configuration to broadcast
+     */
+    broadcastGameConfig(config) {
+        this.currentGameConfig = config;
+        const message = {
+            type: 'GAME_CONFIG',
+            config
+        };
+
+        this.connections.forEach(conn => {
+            conn.send(message);
+        });
+    }
+
+    /**
+     * Set callback for game configuration updates
+     * @param {Function} callback - Called with new config when received
+     */
+    onGameConfigUpdated(callback) {
+        this.onGameConfigUpdatedCallback = callback;
     }
 }
 

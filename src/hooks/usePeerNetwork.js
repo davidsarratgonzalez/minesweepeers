@@ -14,6 +14,7 @@ const usePeerNetwork = (config = {}) => {
     const [connectedUsers, setConnectedUsers] = useState(new Map());
     const [isReady, setIsReady] = useState(false);
     const [messages, setMessages] = useState([]);
+    const [gameConfig, setGameConfig] = useState(null);
 
     const initializeWithUser = useCallback(async (userInfo) => {
         try {
@@ -63,6 +64,10 @@ const usePeerNetwork = (config = {}) => {
             setConnectedUsers(prev => new Map(prev).set(peerId, userInfo));
         });
 
+        network.onGameConfigUpdated((newConfig) => {
+            setGameConfig(newConfig);
+        });
+
         return () => {
             network.disconnect();
         };
@@ -87,6 +92,11 @@ const usePeerNetwork = (config = {}) => {
         setPeerId(null); // Clear peer ID to trigger reinitialization
     }, [network]);
 
+    const updateGameConfig = useCallback((newConfig) => {
+        network.broadcastGameConfig(newConfig);
+        setGameConfig(newConfig);
+    }, [network]);
+
     return {
         peerId,
         isReady,
@@ -97,7 +107,9 @@ const usePeerNetwork = (config = {}) => {
         messages,
         sendMessage,
         disconnectFromNetwork,
-        initializeWithUser
+        initializeWithUser,
+        gameConfig,
+        updateGameConfig
     };
 };
 
