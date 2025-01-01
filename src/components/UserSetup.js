@@ -56,6 +56,15 @@ const UserSetup = ({ onComplete }) => {
                     Ready to play!
                 </button>
             </form>
+            <div className="credits">
+                <a 
+                    href="https://davidsarratgonzalez.github.io" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                >
+                    Made with ❤️ by <strong>David Sarrat González</strong>
+                </a>
+            </div>
         </div>
     );
 };
