@@ -6,10 +6,16 @@ import NotificationTracker from '../services/NotificationTracker';
 /**
  * Component for the chat room interface
  */
-const ChatRoom = ({ messages, sendMessage, connectedUsers, currentUser, addSystemMessage }) => {
+const ChatRoom = ({ 
+    messages, 
+    sendMessage, 
+    connectedUsers, 
+    currentUser, 
+    addSystemMessage,
+    isEnabled 
+}) => {
     const [newMessage, setNewMessage] = useState('');
     const messagesEndRef = useRef(null);
-    const hasPeers = connectedUsers.size > 0;
     const notificationTracker = useRef(new NotificationTracker());
 
     const scrollToBottom = () => {
@@ -57,10 +63,10 @@ const ChatRoom = ({ messages, sendMessage, connectedUsers, currentUser, addSyste
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={hasPeers ? "Type a message..." : "Connect to peers to chat"}
-                    disabled={!hasPeers}
+                    placeholder={isEnabled ? "Type a message..." : "Connect to peers to chat"}
+                    disabled={!isEnabled}
                 />
-                <button type="submit" disabled={!hasPeers}>
+                <button type="submit" disabled={!isEnabled}>
                     Send
                 </button>
             </form>

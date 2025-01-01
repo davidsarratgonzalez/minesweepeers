@@ -117,6 +117,8 @@ const PeerNetworkManager = () => {
         updateGameConfig(null);
     };
 
+    const isChatEnabled = connectedPeers.length > 0;
+
     return (
         <div className="peer-network-manager">
             <div className="network-info">
@@ -212,6 +214,7 @@ const PeerNetworkManager = () => {
                     connectedUsers={connectedUsers}
                     currentUser={userInfo}
                     addSystemMessage={addSystemMessage}
+                    isEnabled={isChatEnabled}
                 />
             </div>
         </div>
