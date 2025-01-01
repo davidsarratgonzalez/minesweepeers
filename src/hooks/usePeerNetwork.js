@@ -55,13 +55,20 @@ const usePeerNetwork = (config = {}) => {
         network.broadcastMessage(content);
     }, [network]);
 
+    const disconnectFromNetwork = useCallback(() => {
+        network.disconnect();
+        setConnectedPeers([]);
+        setMessages([]);
+    }, [network]);
+
     return {
         peerId,
         isReady,
         connectedPeers,
         connectToPeer,
         messages,
-        sendMessage
+        sendMessage,
+        disconnectFromNetwork
     };
 };
 

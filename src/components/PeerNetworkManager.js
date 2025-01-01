@@ -14,7 +14,8 @@ const PeerNetworkManager = () => {
         connectedPeers, 
         connectToPeer,
         messages,
-        sendMessage
+        sendMessage,
+        disconnectFromNetwork
     } = usePeerNetwork();
 
     const handleConnect = (e) => {
@@ -23,6 +24,10 @@ const PeerNetworkManager = () => {
             connectToPeer(targetPeerId.trim());
             setTargetPeerId('');
         }
+    };
+
+    const handleDisconnect = () => {
+        disconnectFromNetwork();
     };
 
     return (
@@ -46,6 +51,15 @@ const PeerNetworkManager = () => {
                     <button type="submit" disabled={!isReady}>
                         Connect to Peer
                     </button>
+                    {connectedPeers.length > 0 && (
+                        <button 
+                            type="button" 
+                            className="disconnect-button"
+                            onClick={handleDisconnect}
+                        >
+                            Disconnect All
+                        </button>
+                    )}
                 </form>
 
                 <div className="peers-list">
