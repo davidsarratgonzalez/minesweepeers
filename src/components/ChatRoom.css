@@ -58,4 +58,32 @@
 
 .message-form input:disabled::placeholder {
     color: #999;
+}
+
+/* Common base styling for all messages */
+.message {
+    padding: 8px 12px;
+    margin: 4px 0;
+    border-radius: 4px;
+    font-size: 0.9em;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* System message specific */
+.message.system {
+    text-align: center;
+}
+
+/* Chat message specific */
+.message.chat {
+    background-color: #f5f5f5;
+}
+
+.message.chat .message-content {
+    word-break: break-word;
+}
+
+.message.chat .sender {
+    font-weight: 500;
 } 
