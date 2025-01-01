@@ -30,6 +30,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
     const containerRef = useRef(null);
     const [isFirstClick, setIsFirstClick] = useState(true);
     const [minesPlaced, setMinesPlaced] = useState(false);
+    const [countdown, setCountdown] = useState(null);
 
     // Initialize empty board
     useEffect(() => {
@@ -50,9 +51,18 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
         const blueprint = createBoardBlueprint(revealedBoard);
         onGameUpdate(blueprint);
         
-        setTimeout(() => {
-            onGameOver();
-        }, 5000);
+        // Start countdown
+        setCountdown(3);
+        const timer = setInterval(() => {
+            setCountdown(prev => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    onGameOver();
+                    return null;
+                }
+                return prev - 1;
+            });
+        }, 1000);
     }, [localBoard, onGameUpdate, onGameOver]);
 
     useEffect(() => {
@@ -117,17 +127,24 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
 
     const handleWin = useCallback(() => {
         setGameStatus(GAME_STATUS.WON);
-        // Also reveal all mines when winning
         const revealedBoard = revealAllMines(localBoard);
         setLocalBoard(revealedBoard);
         
-        // Send blueprint to peers with all mines revealed
         const blueprint = createBoardBlueprint(revealedBoard);
         onGameUpdate(blueprint);
         
-        setTimeout(() => {
-            onGameOver();
-        }, 5000);
+        // Start countdown
+        setCountdown(3);
+        const timer = setInterval(() => {
+            setCountdown(prev => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    onGameOver();
+                    return null;
+                }
+                return prev - 1;
+            });
+        }, 1000);
     }, [localBoard, onGameUpdate, onGameOver]);
 
     const handleMouseDown = (e) => {
@@ -244,6 +261,9 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
             {gameStatus !== GAME_STATUS.PLAYING && (
                 <div className="game-over-overlay">
                     <h2>{gameStatus === GAME_STATUS.WON ? 'You Won!' : 'Game Over!'}</h2>
+                    {countdown && (
+                        <p className="countdown">Returning to lobby in {countdown}...</p>
+                    )}
                 </div>
             )}
         </div>

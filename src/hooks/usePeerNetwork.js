@@ -82,10 +82,10 @@ const usePeerNetwork = (config = {}) => {
             network.currentGameState = null;
             network.currentGameConfig = null;
             
-            // But let the UI show the game over state for 5 seconds
+            // But let the UI show the game over state for 3 seconds
             setTimeout(() => {
                 setGameState(null);
-            }, 5000);
+            }, 3000);
         });
 
         return () => {
