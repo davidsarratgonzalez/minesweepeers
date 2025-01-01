@@ -15,6 +15,7 @@ const usePeerNetwork = (config = {}) => {
     const [isReady, setIsReady] = useState(false);
     const [messages, setMessages] = useState([]);
     const [gameConfig, setGameConfig] = useState(null);
+    const [gameState, setGameState] = useState(null);
 
     const initializeWithUser = useCallback(async (userInfo) => {
         try {
@@ -68,6 +69,20 @@ const usePeerNetwork = (config = {}) => {
             setGameConfig(newConfig);
         });
 
+        network.onGameStarted((config, board) => {
+            setGameState({ config, board });
+        });
+
+        network.onGameBoardUpdated((state) => {
+            setGameState(state);
+        });
+
+        network.onGameOver(() => {
+            setTimeout(() => {
+                setGameState(null);
+            }, 5000);
+        });
+
         return () => {
             network.disconnect();
         };
@@ -97,6 +112,18 @@ const usePeerNetwork = (config = {}) => {
         setGameConfig(newConfig);
     }, [network]);
 
+    const startGame = useCallback((config, board) => {
+        network.startGame(config, board);
+    }, [network]);
+
+    const updateGameState = useCallback((state) => {
+        network.updateGameState(state);
+    }, [network]);
+
+    const endGame = useCallback((reason) => {
+        network.broadcastGameOver(reason);
+    }, [network]);
+
     return {
         peerId,
         isReady,
@@ -109,7 +136,11 @@ const usePeerNetwork = (config = {}) => {
         disconnectFromNetwork,
         initializeWithUser,
         gameConfig,
-        updateGameConfig
+        updateGameConfig,
+        gameState,
+        startGame,
+        updateGameState,
+        endGame
     };
 };
 

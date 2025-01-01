@@ -1,0 +1,35 @@
+.cell {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #999;
+    background-color: #ccc;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.cell:hover:not(:disabled) {
+    background-color: #bbb;
+}
+
+.cell.revealed {
+    background-color: #eee;
+}
+
+.cell.revealed.mine {
+    background-color: #ff4444;
+}
+
+.cell.adjacent-1 { color: #2196F3; }
+.cell.adjacent-2 { color: #4CAF50; }
+.cell.adjacent-3 { color: #f44336; }
+.cell.adjacent-4 { color: #9C27B0; }
+.cell.adjacent-5 { color: #FF9800; }
+.cell.adjacent-6 { color: #00BCD4; }
+.cell.adjacent-7 { color: #795548; }
+.cell.adjacent-8 { color: #607D8B; } 

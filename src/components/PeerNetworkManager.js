@@ -4,6 +4,8 @@ import ChatRoom from './ChatRoom';
 import './PeerNetworkManager.css';
 import UserSetup from './UserSetup';
 import GameConfig from './GameConfig';
+import Minesweeper from './Minesweeper';
+import { createBoard } from '../utils/minesweeperLogic';
 
 /**
  * Component for managing peer network connections and chat
@@ -22,7 +24,11 @@ const PeerNetworkManager = () => {
         disconnectFromNetwork,
         initializeWithUser,
         gameConfig,
-        updateGameConfig
+        updateGameConfig,
+        gameState,
+        startGame,
+        updateGameState,
+        endGame
     } = usePeerNetwork();
     const [copyFeedback, setCopyFeedback] = useState(false);
 
@@ -54,13 +60,23 @@ const PeerNetworkManager = () => {
     };
 
     const handleStartGame = (config) => {
-        console.log('Starting game with config:', config);
-        updateGameConfig(config);
-        // TODO: Implement game start logic
+        const initialBoard = createBoard(config.width, config.height, config.bombs);
+        startGame(config, initialBoard);
     };
 
     const handleConfigChange = (newConfig) => {
         updateGameConfig(newConfig);
+    };
+
+    const handleGameUpdate = (newBoard) => {
+        updateGameState({
+            ...gameState,
+            board: newBoard
+        });
+    };
+
+    const handleGameOver = () => {
+        endGame();
     };
 
     return (
@@ -125,11 +141,20 @@ const PeerNetworkManager = () => {
             </div>
 
             <div className="game-container">
-                <GameConfig 
-                    onStartGame={handleStartGame}
-                    onConfigChange={handleConfigChange}
-                    initialConfig={gameConfig}
-                />
+                {gameState ? (
+                    <Minesweeper 
+                        config={gameState.config}
+                        board={gameState.board}
+                        onGameUpdate={handleGameUpdate}
+                        onGameOver={handleGameOver}
+                    />
+                ) : (
+                    <GameConfig 
+                        onStartGame={handleStartGame}
+                        onConfigChange={handleConfigChange}
+                        initialConfig={gameConfig}
+                    />
+                )}
             </div>
 
             <div className="chat-container">

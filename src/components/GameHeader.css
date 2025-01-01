@@ -1,0 +1,24 @@
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 400px;
+    padding: 10px 20px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.mines-counter,
+.timer {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+}
+
+.game-status {
+    font-size: 16px;
+    color: #666;
+    text-transform: capitalize;
+} 

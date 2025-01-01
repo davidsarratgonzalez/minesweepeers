@@ -33,6 +33,9 @@ class PeerNetwork {
         this.hasAnnouncedUser = new Set();
         this.destroyed = false; // Track if peer was destroyed
         this.onGameConfigUpdatedCallback = null;
+        this.onGameBoardUpdatedCallback = null;
+        this.onGameStartedCallback = null;
+        this.onGameOverCallback = null;
     }
 
     /**
@@ -110,6 +113,14 @@ class PeerNetwork {
                 });
             }
 
+            // Share current game state if we have it
+            if (this.currentGameState) {
+                conn.send({
+                    type: 'GAME_STATE',
+                    state: this.currentGameState
+                });
+            }
+
             this.sharePeerList(conn);
             
             if (this.onPeerConnectedCallback) {
@@ -139,6 +150,18 @@ class PeerNetwork {
                     break;
                 case 'GAME_CONFIG':
                     this.handleGameConfig(data.config);
+                    break;
+                case 'GAME_START':
+                    this.handleGameStart(data.config, data.board);
+                    break;
+                case 'GAME_STATE':
+                    this.handleGameState(data.state);
+                    break;
+                case 'GAME_OVER':
+                    this.handleGameOver(data.reason);
+                    break;
+                default:
+                    console.warn('Unknown message type:', data.type);
                     break;
             }
         });
@@ -439,6 +462,97 @@ class PeerNetwork {
      */
     onGameConfigUpdated(callback) {
         this.onGameConfigUpdatedCallback = callback;
+    }
+
+    /**
+     * Start a new game and broadcast to peers
+     */
+    startGame(config, board) {
+        this.currentGameState = { config, board };
+        const message = {
+            type: 'GAME_START',
+            config,
+            board
+        };
+
+        this.connections.forEach(conn => {
+            conn.send(message);
+        });
+
+        if (this.onGameStartedCallback) {
+            this.onGameStartedCallback(config, board);
+        }
+    }
+
+    /**
+     * Update game state and broadcast to peers
+     */
+    updateGameState(state) {
+        this.currentGameState = state;
+        const message = {
+            type: 'GAME_STATE',
+            state
+        };
+
+        this.connections.forEach(conn => {
+            conn.send(message);
+        });
+
+        if (this.onGameBoardUpdatedCallback) {
+            this.onGameBoardUpdatedCallback(state);
+        }
+    }
+
+    /**
+     * Broadcast game over to peers
+     */
+    broadcastGameOver(reason) {
+        const message = {
+            type: 'GAME_OVER',
+            reason
+        };
+
+        this.connections.forEach(conn => {
+            conn.send(message);
+        });
+
+        if (this.onGameOverCallback) {
+            this.onGameOverCallback(reason);
+        }
+    }
+
+    // Handler methods
+    handleGameStart(config, board) {
+        this.currentGameState = { config, board };
+        if (this.onGameStartedCallback) {
+            this.onGameStartedCallback(config, board);
+        }
+    }
+
+    handleGameState(state) {
+        this.currentGameState = state;
+        if (this.onGameBoardUpdatedCallback) {
+            this.onGameBoardUpdatedCallback(state);
+        }
+    }
+
+    handleGameOver(reason) {
+        if (this.onGameOverCallback) {
+            this.onGameOverCallback(reason);
+        }
+    }
+
+    // Callback setters
+    onGameStarted(callback) {
+        this.onGameStartedCallback = callback;
+    }
+
+    onGameBoardUpdated(callback) {
+        this.onGameBoardUpdatedCallback = callback;
+    }
+
+    onGameOver(callback) {
+        this.onGameOverCallback = callback;
     }
 }
 
