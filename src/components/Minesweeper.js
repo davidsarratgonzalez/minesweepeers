@@ -86,22 +86,23 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
     useEffect(() => {
         if (gameStatus === GAME_STATUS.PLAYING) {
             const interval = setInterval(() => {
-                setTimer(prevTimer => {
-                    const updatedTimer = updateTimer(prevTimer);
-                    
-                    // Check if countdown reached zero
-                    if (updatedTimer.isCountdown && updatedTimer.currentSeconds === 0) {
-                        clearInterval(interval);
-                        handleGameOver();
-                    }
-                    
-                    return updatedTimer;
-                });
+                setTimer(prevTimer => updateTimer(prevTimer));
             }, 1000);
 
             return () => clearInterval(interval);
         }
     }, [gameStatus]);
+
+    // Separate effect to handle timer reaching zero
+    useEffect(() => {
+        if (timer.isCountdown && timer.currentSeconds === 0 && gameStatus === GAME_STATUS.PLAYING) {
+            const revealedBoard = revealAllMines(localBoard);
+            setLocalBoard(revealedBoard);
+            const blueprint = createBoardBlueprint(revealedBoard);
+            onGameUpdate(blueprint);
+            handleGameOver();
+        }
+    }, [timer.currentSeconds, timer.isCountdown, gameStatus]);
 
     const handleCellClick = (x, y) => {
         if (gameStatus !== GAME_STATUS.PLAYING) return;
