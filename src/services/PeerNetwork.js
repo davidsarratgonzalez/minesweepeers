@@ -38,6 +38,7 @@ class PeerNetwork {
         this.onGameOverCallback = null;
         this.onCursorUpdateCallback = null;
         this.outgoingConnections = new Set(); // Track connections we initiated
+        this.messages = [];
     }
 
     /**
@@ -170,17 +171,26 @@ class PeerNetwork {
         });
 
         conn.on('close', () => {
+            const userInfo = this.connectedUsers.get(conn.peer);
             this.connections.delete(conn.peer);
             this.outgoingConnections.delete(conn.peer);
             this.connectedUsers.delete(conn.peer);
             this.pendingUserInfoRequests.delete(conn.peer);
             
+            // Send system message about disconnection if we have user info
+            if (userInfo && this.onMessageReceivedCallback) {
+                const message = {
+                    type: 'SYSTEM',
+                    content: `${userInfo.name} left!`,
+                    timestamp: Date.now(),
+                    peerId: conn.peer  // Add peerId to track who left
+                };
+                this.onMessageReceivedCallback(message);
+            }
+
             if (this.onPeerDisconnectedCallback) {
                 this.onPeerDisconnectedCallback(conn.peer);
             }
-
-            const displayName = this.getUserDisplayName(conn.peer);
-            this.broadcastSystemMessage(`${displayName} has left the network`);
         });
     }
 
@@ -201,7 +211,6 @@ class PeerNetwork {
 
         // Broadcast system message for new user
         if (!this.hasAnnouncedUser.has(peerId)) {
-            this.broadcastSystemMessage(`${userInfo.name} has joined the network`);
             this.hasAnnouncedUser.add(peerId);
         }
     }
@@ -609,6 +618,18 @@ class PeerNetwork {
         if (this.onCursorUpdateCallback) {
             // Send null position to remove cursor
             this.onCursorUpdateCallback(peerId, null);
+        }
+    }
+
+    addSystemMessage(content) {
+        const message = {
+            type: 'SYSTEM',
+            content,
+            timestamp: Date.now()
+        };
+        this.messages.push(message);
+        if (this.onMessageReceivedCallback) {
+            this.onMessageReceivedCallback(message);
         }
     }
 }

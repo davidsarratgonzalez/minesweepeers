@@ -31,7 +31,8 @@ const PeerNetworkManager = () => {
         endGame,
         network,
         peerCursors,
-        broadcastCursorPosition
+        broadcastCursorPosition,
+        addSystemMessage,
     } = usePeerNetwork();
     const [copyFeedback, setCopyFeedback] = useState(false);
     const [connectionError, setConnectionError] = useState('');
@@ -210,6 +211,7 @@ const PeerNetworkManager = () => {
                     sendMessage={sendMessage}
                     connectedUsers={connectedUsers}
                     currentUser={userInfo}
+                    addSystemMessage={addSystemMessage}
                 />
             </div>
         </div>

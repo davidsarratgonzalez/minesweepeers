@@ -159,6 +159,10 @@ const usePeerNetwork = (config = {}) => {
         network.broadcastCursorPosition(position);
     }, [network]);
 
+    const addSystemMessage = useCallback((content) => {
+        network.addSystemMessage(content);
+    }, [network]);
+
     return {
         peerId,
         isReady,
@@ -177,7 +181,8 @@ const usePeerNetwork = (config = {}) => {
         updateGameState,
         endGame,
         peerCursors,
-        broadcastCursorPosition
+        broadcastCursorPosition,
+        addSystemMessage,
     };
 };
 

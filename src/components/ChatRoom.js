@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ChatMessage from './ChatMessage';
 import './ChatRoom.css';
+import NotificationTracker from '../services/NotificationTracker';
 
 /**
  * Component for the chat room interface
  */
-const ChatRoom = ({ messages, sendMessage, connectedUsers, currentUser }) => {
+const ChatRoom = ({ messages, sendMessage, connectedUsers, currentUser, addSystemMessage }) => {
     const [newMessage, setNewMessage] = useState('');
     const messagesEndRef = useRef(null);
     const hasPeers = connectedUsers.size > 0;
+    const notificationTracker = useRef(new NotificationTracker());
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -17,6 +19,17 @@ const ChatRoom = ({ messages, sendMessage, connectedUsers, currentUser }) => {
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    useEffect(() => {
+        // Only track new connections for join notifications
+        const tracker = notificationTracker.current;
+
+        connectedUsers.forEach((user, peerId) => {
+            if (peerId !== currentUser.peerId && tracker.shouldNotifyJoin(peerId)) {
+                addSystemMessage(`${user.name} joined!`);
+            }
+        });
+    }, [connectedUsers, currentUser.peerId, addSystemMessage]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
