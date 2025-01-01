@@ -11,7 +11,9 @@ import {
     createBoardBlueprint, 
     applyBoardBlueprint, 
     createEmptyBoard, 
-    placeMines 
+    placeMines, 
+    createTimer, 
+    updateTimer 
 } from '../utils/minesweeperLogic';
 import './Minesweeper.css';
 import CursorOverlay from './CursorOverlay';
@@ -20,10 +22,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
     const [localBoard, setLocalBoard] = useState(null);
     const [gameStatus, setGameStatus] = useState(GAME_STATUS.PLAYING);
     const [flagsCount, setFlagsCount] = useState(0);
-    const [timeLeft, setTimeLeft] = useState(
-        config.timer.enabled ? config.timer.minutes * 60 + config.timer.seconds : 0
-    );
-    const [elapsedTime, setElapsedTime] = useState(0);
+    const [timer, setTimer] = useState(() => createTimer(config));
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [scrollPosition, setScrollPosition] = useState({ x: 0, y: 0 });
@@ -86,27 +85,23 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
 
     useEffect(() => {
         if (gameStatus === GAME_STATUS.PLAYING) {
-            gameTimerRef.current = setInterval(() => {
-                if (config.timer.enabled) {
-                    setTimeLeft(prev => {
-                        if (prev <= 0) {
-                            clearInterval(gameTimerRef.current);
-                            handleGameOver();
-                            return 0;
-                        }
-                        return prev - 1;
-                    });
-                } else {
-                    setElapsedTime(prev => prev + 1);
-                }
+            const interval = setInterval(() => {
+                setTimer(prevTimer => {
+                    const updatedTimer = updateTimer(prevTimer);
+                    
+                    // Check if countdown reached zero
+                    if (updatedTimer.isCountdown && updatedTimer.currentSeconds === 0) {
+                        clearInterval(interval);
+                        handleGameOver();
+                    }
+                    
+                    return updatedTimer;
+                });
             }, 1000);
+
+            return () => clearInterval(interval);
         }
-        return () => {
-            if (gameTimerRef.current) {
-                clearInterval(gameTimerRef.current);
-            }
-        };
-    }, [gameStatus, config.timer.enabled, handleGameOver]);
+    }, [gameStatus]);
 
     const handleCellClick = (x, y) => {
         if (gameStatus !== GAME_STATUS.PLAYING) return;
@@ -287,8 +282,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
                 gameStatus={gameStatus}
                 flagsCount={flagsCount}
                 totalMines={config.bombs}
-                timeLeft={config.timer.enabled ? timeLeft : null}
-                elapsedTime={!config.timer.enabled ? elapsedTime : null}
+                timer={timer}
             />
             <div 
                 ref={containerRef}

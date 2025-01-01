@@ -201,4 +201,43 @@ export const applyBoardBlueprint = (board, blueprint) => {
             };
         })
     );
+};
+
+export const createTimer = (config) => {
+    const totalSeconds = config.timer.enabled ? 
+        (config.timer.minutes * 60 + config.timer.seconds) : 
+        0;
+
+    return {
+        isCountdown: config.timer.enabled,
+        totalSeconds,
+        currentSeconds: config.timer.enabled ? totalSeconds : 0, // Set initial value
+        startTime: Date.now(),
+        isPaused: false
+    };
+};
+
+export const updateTimer = (timer) => {
+    if (timer.isPaused) return timer;
+
+    const elapsedSeconds = Math.floor((Date.now() - timer.startTime) / 1000);
+    
+    if (timer.isCountdown) {
+        const remainingSeconds = Math.max(0, timer.totalSeconds - elapsedSeconds);
+        return {
+            ...timer,
+            currentSeconds: remainingSeconds
+        };
+    } else {
+        return {
+            ...timer,
+            currentSeconds: elapsedSeconds
+        };
+    }
+};
+
+export const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }; 
