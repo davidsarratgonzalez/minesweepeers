@@ -27,16 +27,16 @@ const PRESETS = {
 
 const MIN_SIZE = 5;
 const MAX_SIZE = 50;
-const MIN_BOMBS = 2;
+const MIN_BOMBS = 1;
 const MAX_BOMBS_PERCENTAGE = 0.35; // Maximum 35% of cells can be bombs
 
 const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
     const [preset, setPreset] = useState('beginner');
     const [config, setConfig] = useState({
         selectedPreset: 'beginner',
-        width: MIN_SIZE,      // Default minimum
-        height: MIN_SIZE,     // Default minimum
-        bombs: MIN_BOMBS,     // Default minimum
+        width: PRESETS.beginner.width,
+        height: PRESETS.beginner.height,
+        bombs: PRESETS.beginner.bombs,
         timer: {
             enabled: true,
             minutes: 5,
@@ -76,30 +76,40 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
         const minutes = parseInt(newConfig.timer.minutes);
         const seconds = parseInt(newConfig.timer.seconds);
 
-        // Allow empty values in inputs
-        if (newConfig.width && (isNaN(width) || width < MIN_SIZE || width > MAX_SIZE)) {
-            errors.width = `Width must be between ${MIN_SIZE} and ${MAX_SIZE}`;
+        // Only validate if there's a value (don't validate empty inputs)
+        if (newConfig.width !== '') {
+            if (isNaN(width) || width < MIN_SIZE || width > MAX_SIZE) {
+                errors.width = `Width must be between ${MIN_SIZE} and ${MAX_SIZE}`;
+            }
         }
 
-        if (newConfig.height && (isNaN(height) || height < MIN_SIZE || height > MAX_SIZE)) {
-            errors.height = `Height must be between ${MIN_SIZE} and ${MAX_SIZE}`;
+        if (newConfig.height !== '') {
+            if (isNaN(height) || height < MIN_SIZE || height > MAX_SIZE) {
+                errors.height = `Height must be between ${MIN_SIZE} and ${MAX_SIZE}`;
+            }
         }
 
-        if (width && height) {
-            const maxBombs = Math.floor(width * height * MAX_BOMBS_PERCENTAGE);
-            if (newConfig.bombs && (isNaN(bombs) || bombs < MIN_BOMBS || bombs > maxBombs)) {
-                errors.bombs = `Bombs must be between ${MIN_BOMBS} and ${maxBombs}`;
+        if (newConfig.bombs !== '') {
+            if (width && height) {
+                const maxBombs = Math.floor(width * height * MAX_BOMBS_PERCENTAGE);
+                if (isNaN(bombs) || bombs < MIN_BOMBS || bombs > maxBombs) {
+                    errors.bombs = `Bombs must be between ${MIN_BOMBS} and ${maxBombs}`;
+                }
             }
         }
 
         if (newConfig.timer.enabled) {
-            if (newConfig.timer.minutes && (isNaN(minutes) || minutes < 0 || minutes > 99)) {
-                errors.minutes = 'Minutes must be between 0 and 99';
+            if (newConfig.timer.minutes !== '') {
+                if (isNaN(minutes) || minutes < 0 || minutes > 99) {
+                    errors.minutes = 'Minutes must be between 0 and 99';
+                }
             }
-            if (newConfig.timer.seconds && (isNaN(seconds) || seconds < 0 || seconds > 59)) {
-                errors.seconds = 'Seconds must be between 0 and 59';
+            if (newConfig.timer.seconds !== '') {
+                if (isNaN(seconds) || seconds < 0 || seconds > 59) {
+                    errors.seconds = 'Seconds must be between 0 and 59';
+                }
             }
-            if (!minutes && !seconds) {
+            if (newConfig.timer.minutes === '' && newConfig.timer.seconds === '') {
                 errors.timer = 'Timer must have a value';
             }
         }
@@ -132,47 +142,70 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
     };
 
     const handleConfigChange = (field, value) => {
+        // Switch to custom preset when any value is modified
+        if (preset !== 'custom') {
+            setPreset('custom');
+        }
+
+        // Only update the specific field that changed
         let newConfig;
         if (field.includes('.')) {
             const [parent, child] = field.split('.');
             newConfig = {
                 ...config,
+                selectedPreset: 'custom',
                 [parent]: {
                     ...config[parent],
-                    [child]: value || (child === 'minutes' || child === 'seconds' ? 0 : value)
+                    [child]: value
                 }
             };
+            
+            // Only update this specific input value
+            setInputValues(prev => ({
+                ...prev,
+                [child]: value
+            }));
         } else {
             newConfig = {
                 ...config,
-                [field]: value || (
-                    field === 'width' ? MIN_SIZE :
-                    field === 'height' ? MIN_SIZE :
-                    field === 'bombs' ? MIN_BOMBS :
-                    value
-                )
+                selectedPreset: 'custom',
+                [field]: value
             };
+            
+            // Only update this specific input value
+            setInputValues(prev => ({
+                ...prev,
+                [field]: value
+            }));
         }
-
-        setInputValues(prev => ({
-            ...prev,
-            [field.includes('.') ? field.split('.')[1] : field]: value
-        }));
 
         const newErrors = validateConfig(newConfig);
         setErrors(newErrors);
         
-        // Only update if there are no errors
-        if (Object.keys(newErrors).length === 0) {
-            setConfig(newConfig);
-            onConfigChange?.(newConfig);
-        }
+        // Propagate the change even if there are errors
+        setConfig(newConfig);
+        onConfigChange?.(newConfig);
+    };
+
+    // Add helper to check if config has all required values
+    const isConfigComplete = (config) => {
+        const hasValidDimensions = config.width && config.height && 
+            parseInt(config.width) >= MIN_SIZE && 
+            parseInt(config.height) >= MIN_SIZE;
+        
+        const hasValidBombs = config.bombs && 
+            parseInt(config.bombs) >= MIN_BOMBS;
+
+        const hasValidTimer = !config.timer.enabled || 
+            (config.timer.minutes || config.timer.seconds);
+
+        return hasValidDimensions && hasValidBombs && hasValidTimer;
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
         
-        // Convert empty strings to numbers for submission
+        // Use default values only when submitting
         const finalConfig = {
             ...config,
             width: parseInt(config.width) || MIN_SIZE,
@@ -230,6 +263,7 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
                                 max={MAX_SIZE}
                                 value={inputValues.width}
                                 onChange={(e) => handleConfigChange('width', e.target.value)}
+                                placeholder={MIN_SIZE.toString()}
                             />
                             {errors.width && <span className="error">{errors.width}</span>}
                         </label>
@@ -241,6 +275,7 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
                                 max={MAX_SIZE}
                                 value={inputValues.height}
                                 onChange={(e) => handleConfigChange('height', e.target.value)}
+                                placeholder={MIN_SIZE.toString()}
                             />
                             {errors.height && <span className="error">{errors.height}</span>}
                         </label>
@@ -258,6 +293,7 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
                                 max={maxBombs}
                                 value={inputValues.bombs}
                                 onChange={(e) => handleConfigChange('bombs', e.target.value)}
+                                placeholder={MIN_BOMBS.toString()}
                             />
                             {errors.bombs && <span className="error">{errors.bombs}</span>}
                         </label>
@@ -289,6 +325,7 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
                                     max="99"
                                     value={inputValues.minutes}
                                     onChange={(e) => handleConfigChange('timer.minutes', e.target.value)}
+                                    placeholder="0"
                                 />
                                 {errors.minutes && <span className="error">{errors.minutes}</span>}
                             </label>
@@ -300,6 +337,7 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
                                     max="59"
                                     value={inputValues.seconds}
                                     onChange={(e) => handleConfigChange('timer.seconds', e.target.value)}
+                                    placeholder="0"
                                 />
                                 {errors.seconds && <span className="error">{errors.seconds}</span>}
                             </label>
