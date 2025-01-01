@@ -38,6 +38,10 @@ const PeerNetworkManager = () => {
         disconnectFromNetwork();
     };
 
+    const handleCopyPeerId = () => {
+        navigator.clipboard.writeText(peerId);
+    };
+
     const getUserName = (peerId) => {
         const user = connectedUsers.get(peerId);
         return user ? user.name : `Unknown (${peerId})`;
@@ -46,43 +50,57 @@ const PeerNetworkManager = () => {
     return (
         <div className="peer-network-manager">
             <div className="network-info">
-                <h2>Peer Network</h2>
-                <div className="status-container">
-                    <p>Your Name: <span className="user-name">{userInfo?.name}</span></p>
-                    <p>Your Peer ID: <span className="peer-id">{peerId || 'Initializing...'}</span></p>
-                    <p>Status: <span className={`status ${isReady ? 'ready' : ''}`}>
-                        {isReady ? 'Ready' : 'Initializing...'}
-                    </span></p>
+                <div className="peer-id-container">
+                    <div className="peer-id-wrapper">
+                        <div className="peer-id">{peerId || 'Initializing...'}</div>
+                    </div>
+                    <button 
+                        className="copy-button" 
+                        onClick={handleCopyPeerId}
+                        title="Copy Peer ID"
+                    >
+                        📋
+                    </button>
                 </div>
 
-                <form className="connect-form" onSubmit={handleConnect}>
-                    <input
-                        type="text"
-                        value={targetPeerId}
-                        onChange={(e) => setTargetPeerId(e.target.value)}
-                        placeholder="Enter peer ID to connect"
-                    />
-                    <button type="submit" disabled={!isReady}>
-                        Connect to Peer
-                    </button>
-                    {connectedPeers.length > 0 && (
+                <div className="connection-controls">
+                    {connectedPeers.length === 0 ? (
+                        <form className="connect-form" onSubmit={handleConnect}>
+                            <input
+                                type="text"
+                                value={targetPeerId}
+                                onChange={(e) => setTargetPeerId(e.target.value)}
+                                placeholder="Enter peer ID to connect"
+                                disabled={!isReady}
+                            />
+                            <button type="submit" disabled={!isReady}>
+                                Connect
+                            </button>
+                        </form>
+                    ) : (
                         <button 
-                            type="button" 
                             className="disconnect-button"
                             onClick={handleDisconnect}
                         >
                             Disconnect All
                         </button>
                     )}
-                </form>
+                </div>
 
                 <div className="peers-list">
-                    <h3>Connected Peers ({connectedPeers.length})</h3>
+                    <h3>Connected Players ({connectedPeers.length + 1})</h3>
                     <ul>
+                        <li 
+                            className="current-user"
+                            style={{ color: userInfo.color.value }}
+                        >
+                            {userInfo.name} (You)
+                        </li>
                         {connectedPeers.map((peer) => (
-                            <li key={peer} style={{ 
-                                color: connectedUsers.get(peer)?.color.value 
-                            }}>
+                            <li 
+                                key={peer}
+                                style={{ color: connectedUsers.get(peer)?.color.value }}
+                            >
                                 {getUserName(peer)}
                             </li>
                         ))}
@@ -90,12 +108,14 @@ const PeerNetworkManager = () => {
                 </div>
             </div>
 
-            <ChatRoom 
-                messages={messages} 
-                sendMessage={sendMessage}
-                connectedUsers={connectedUsers}
-                currentUser={userInfo}
-            />
+            <div className="chat-container">
+                <ChatRoom 
+                    messages={messages} 
+                    sendMessage={sendMessage}
+                    connectedUsers={connectedUsers}
+                    currentUser={userInfo}
+                />
+            </div>
         </div>
     );
 };

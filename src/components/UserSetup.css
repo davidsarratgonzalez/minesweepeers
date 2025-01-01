@@ -1,7 +1,7 @@
 .user-setup {
     max-width: 400px;
     margin: 40px auto;
-    padding: 20px;
+    padding: 30px;
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -9,12 +9,13 @@
 
 .user-setup h2 {
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 30px;
     color: #333;
+    font-weight: 400;
 }
 
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 25px;
 }
 
 .form-group label {
@@ -26,17 +27,29 @@
 
 .form-group input {
     width: 100%;
-    padding: 8px 12px;
+    padding: 10px 12px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    font-size: 16px;
+    font-size: 14px;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+    border-color: #2196F3;
 }
 
 .color-options {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(4, 40px);
+    grid-template-rows: repeat(2, 40px);
+    gap: 12px;
     justify-content: center;
+    margin-top: 10px;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .color-option {
@@ -45,7 +58,9 @@
     border-radius: 20px;
     border: 2px solid transparent;
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: transform 0.2s, border-color 0.2s;
+    padding: 0;
+    outline: none;
 }
 
 .color-option:hover {
@@ -66,7 +81,8 @@
     border-radius: 4px;
     font-size: 16px;
     cursor: pointer;
-    margin-top: 20px;
+    margin-top: 10px;
+    transition: background-color 0.2s;
 }
 
 .submit-button:disabled {

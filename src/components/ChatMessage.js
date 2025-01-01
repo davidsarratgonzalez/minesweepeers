@@ -5,7 +5,6 @@ import './ChatMessage.css';
  * Component for rendering a single chat message
  */
 const ChatMessage = ({ message, connectedUsers }) => {
-    const timestamp = new Date(message.timestamp).toLocaleTimeString();
     const isSystem = message.type === 'SYSTEM';
     
     const userInfo = message.senderInfo || connectedUsers.get(message.sender);
@@ -20,7 +19,6 @@ const ChatMessage = ({ message, connectedUsers }) => {
                 </span>
             )}
             <span className="content">{message.content}</span>
-            <span className="timestamp">{timestamp}</span>
         </div>
     );
 };

@@ -1,12 +1,14 @@
 export const PEER_COLORS = [
-    { id: 'blue', value: '#2196F3', name: 'Blue' },
-    { id: 'green', value: '#4CAF50', name: 'Green' },
-    { id: 'purple', value: '#9C27B0', name: 'Purple' },
-    { id: 'orange', value: '#FF9800', name: 'Orange' },
-    { id: 'pink', value: '#E91E63', name: 'Pink' },
-    { id: 'teal', value: '#009688', name: 'Teal' },
-    { id: 'red', value: '#f44336', name: 'Red' },
-    { id: 'indigo', value: '#3F51B5', name: 'Indigo' }
+    // First row
+    { id: 'red', value: '#E53935', name: 'Red' },
+    { id: 'blue', value: '#1E88E5', name: 'Blue' },
+    { id: 'green', value: '#43A047', name: 'Green' },
+    { id: 'yellow', value: '#FDD835', name: 'Yellow' },
+    // Second row
+    { id: 'purple', value: '#8E24AA', name: 'Purple' },
+    { id: 'orange', value: '#FB8C00', name: 'Orange' },
+    { id: 'cyan', value: '#00ACC1', name: 'Cyan' },
+    { id: 'pink', value: '#D81B60', name: 'Pink' },
 ];
 
 export const getRandomColor = () => {
