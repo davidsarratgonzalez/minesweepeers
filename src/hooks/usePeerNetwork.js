@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import PeerNetwork from '../services/PeerNetwork';
 
 /**
- * Hook for managing peer-to-peer network connections
+ * Hook for managing peer-to-peer network connections and chat
  * @param {Object} config - PeerJS configuration options
  * @returns {Object} Network state and control methods
  */
@@ -11,6 +11,7 @@ const usePeerNetwork = (config = {}) => {
     const [peerId, setPeerId] = useState(null);
     const [connectedPeers, setConnectedPeers] = useState([]);
     const [isReady, setIsReady] = useState(false);
+    const [messages, setMessages] = useState([]);
 
     useEffect(() => {
         const initialize = async () => {
@@ -33,6 +34,10 @@ const usePeerNetwork = (config = {}) => {
             setConnectedPeers(network.getConnectedPeers());
         });
 
+        network.onMessageReceived((message) => {
+            setMessages(prev => [...prev, message]);
+        });
+
         return () => {
             network.disconnect();
         };
@@ -46,11 +51,17 @@ const usePeerNetwork = (config = {}) => {
         }
     }, [network]);
 
+    const sendMessage = useCallback((content) => {
+        network.broadcastMessage(content);
+    }, [network]);
+
     return {
         peerId,
         isReady,
         connectedPeers,
-        connectToPeer
+        connectToPeer,
+        messages,
+        sendMessage
     };
 };
 

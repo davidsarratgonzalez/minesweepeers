@@ -1,6 +1,14 @@
 import Peer from 'peerjs';
 
 /**
+ * @typedef {Object} ChatMessage
+ * @property {string} type - Message type (CHAT or SYSTEM)
+ * @property {string} sender - Sender's peer ID
+ * @property {string} content - Message content
+ * @property {number} timestamp - Message timestamp
+ */
+
+/**
  * PeerNetwork manages peer-to-peer connections and network topology
  * @class PeerNetwork
  */
@@ -17,6 +25,7 @@ class PeerNetwork {
         this.onPeerConnectedCallback = null;
         this.onPeerDisconnectedCallback = null;
         this.onNetworkReadyCallback = null;
+        this.onMessageReceivedCallback = null;
     }
 
     /**
@@ -65,6 +74,9 @@ class PeerNetwork {
             if (this.onPeerConnectedCallback) {
                 this.onPeerConnectedCallback(conn.peer);
             }
+            
+            // Broadcast system message about new peer
+            this.broadcastSystemMessage(`Peer ${conn.peer} has joined the network`);
         });
 
         conn.on('data', (data) => {
@@ -76,6 +88,9 @@ class PeerNetwork {
             if (this.onPeerDisconnectedCallback) {
                 this.onPeerDisconnectedCallback(conn.peer);
             }
+            
+            // Broadcast system message about peer disconnection
+            this.broadcastSystemMessage(`Peer ${conn.peer} has left the network`);
         });
     }
 
@@ -115,6 +130,10 @@ class PeerNetwork {
     handlePeerMessage(peerId, message) {
         if (message.type === 'PEER_LIST') {
             this.handlePeerListMessage(message.peers);
+        } else if (message.type === 'CHAT' || message.type === 'SYSTEM') {
+            if (this.onMessageReceivedCallback) {
+                this.onMessageReceivedCallback(message);
+            }
         }
     }
 
@@ -169,6 +188,59 @@ class PeerNetwork {
         this.connections.clear();
         if (this.peer) {
             this.peer.destroy();
+        }
+    }
+
+    /**
+     * Send a chat message to all connected peers
+     * @param {string} content - Message content
+     */
+    broadcastMessage(content) {
+        const message = {
+            type: 'CHAT',
+            sender: this.peerId,
+            content,
+            timestamp: Date.now()
+        };
+
+        this.connections.forEach(conn => {
+            conn.send(message);
+        });
+
+        // Also notify local listeners
+        if (this.onMessageReceivedCallback) {
+            this.onMessageReceivedCallback(message);
+        }
+    }
+
+    /**
+     * Set callback for receiving messages
+     * @param {Function} callback - Called with message object when a message is received
+     */
+    onMessageReceived(callback) {
+        this.onMessageReceivedCallback = callback;
+    }
+
+    /**
+     * Send system notification to all peers
+     * @private
+     * @param {string} content - System message content
+     */
+    broadcastSystemMessage(content) {
+        const message = {
+            type: 'SYSTEM',
+            sender: 'SYSTEM',
+            content,
+            timestamp: Date.now()
+        };
+
+        this.connections.forEach(conn => {
+            conn.send(message);
+        });
+
+        // Also notify local listeners
+        if (this.onMessageReceivedCallback) {
+            this.onMessageReceivedCallback(message);
         }
     }
 }
