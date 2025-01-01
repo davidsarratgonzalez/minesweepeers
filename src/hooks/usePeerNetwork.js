@@ -9,9 +9,22 @@ import PeerNetwork from '../services/PeerNetwork';
 const usePeerNetwork = (config = {}) => {
     const [network] = useState(() => new PeerNetwork(config));
     const [peerId, setPeerId] = useState(null);
+    const [userInfo, setUserInfo] = useState(null);
     const [connectedPeers, setConnectedPeers] = useState([]);
+    const [connectedUsers, setConnectedUsers] = useState(new Map());
     const [isReady, setIsReady] = useState(false);
     const [messages, setMessages] = useState([]);
+
+    const initializeWithUser = useCallback(async (userInfo) => {
+        try {
+            const id = await network.initialize(userInfo);
+            setUserInfo(userInfo);
+            setPeerId(id);
+            setIsReady(true);
+        } catch (error) {
+            console.error('Failed to initialize peer network:', error);
+        }
+    }, [network]);
 
     useEffect(() => {
         const initialize = async () => {
@@ -36,6 +49,10 @@ const usePeerNetwork = (config = {}) => {
 
         network.onMessageReceived((message) => {
             setMessages(prev => [...prev, message]);
+        });
+
+        network.onUserInfoUpdated((peerId, userInfo) => {
+            setConnectedUsers(prev => new Map(prev).set(peerId, userInfo));
         });
 
         return () => {
@@ -64,11 +81,14 @@ const usePeerNetwork = (config = {}) => {
     return {
         peerId,
         isReady,
+        userInfo,
         connectedPeers,
+        connectedUsers,
         connectToPeer,
         messages,
         sendMessage,
-        disconnectFromNetwork
+        disconnectFromNetwork,
+        initializeWithUser
     };
 };
 

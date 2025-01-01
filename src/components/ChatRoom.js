@@ -5,7 +5,7 @@ import './ChatRoom.css';
 /**
  * Component for the chat room interface
  */
-const ChatRoom = ({ messages, sendMessage }) => {
+const ChatRoom = ({ messages, sendMessage, connectedUsers, currentUser }) => {
     const [newMessage, setNewMessage] = useState('');
     const messagesEndRef = useRef(null);
 
@@ -29,7 +29,12 @@ const ChatRoom = ({ messages, sendMessage }) => {
         <div className="chat-room">
             <div className="messages-container">
                 {messages.map((msg, index) => (
-                    <ChatMessage key={index} message={msg} />
+                    <ChatMessage 
+                        key={index} 
+                        message={msg} 
+                        connectedUsers={connectedUsers || new Map()}
+                        currentUser={currentUser}
+                    />
                 ))}
                 <div ref={messagesEndRef} />
             </div>

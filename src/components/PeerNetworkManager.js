@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import usePeerNetwork from '../hooks/usePeerNetwork';
 import ChatRoom from './ChatRoom';
 import './PeerNetworkManager.css';
+import UserSetup from './UserSetup';
 
 /**
  * Component for managing peer network connections and chat
@@ -11,12 +12,19 @@ const PeerNetworkManager = () => {
     const { 
         peerId, 
         isReady, 
-        connectedPeers, 
+        userInfo,
+        connectedPeers,
+        connectedUsers,
         connectToPeer,
         messages,
         sendMessage,
-        disconnectFromNetwork
+        disconnectFromNetwork,
+        initializeWithUser
     } = usePeerNetwork();
+
+    if (!userInfo) {
+        return <UserSetup onComplete={initializeWithUser} />;
+    }
 
     const handleConnect = (e) => {
         e.preventDefault();
@@ -30,11 +38,17 @@ const PeerNetworkManager = () => {
         disconnectFromNetwork();
     };
 
+    const getUserName = (peerId) => {
+        const user = connectedUsers.get(peerId);
+        return user ? user.name : `Unknown (${peerId})`;
+    };
+
     return (
         <div className="peer-network-manager">
             <div className="network-info">
                 <h2>Peer Network</h2>
                 <div className="status-container">
+                    <p>Your Name: <span className="user-name">{userInfo?.name}</span></p>
                     <p>Your Peer ID: <span className="peer-id">{peerId || 'Initializing...'}</span></p>
                     <p>Status: <span className={`status ${isReady ? 'ready' : ''}`}>
                         {isReady ? 'Ready' : 'Initializing...'}
@@ -66,13 +80,22 @@ const PeerNetworkManager = () => {
                     <h3>Connected Peers ({connectedPeers.length})</h3>
                     <ul>
                         {connectedPeers.map((peer) => (
-                            <li key={peer}>{peer}</li>
+                            <li key={peer} style={{ 
+                                color: connectedUsers.get(peer)?.color.value 
+                            }}>
+                                {getUserName(peer)}
+                            </li>
                         ))}
                     </ul>
                 </div>
             </div>
 
-            <ChatRoom messages={messages} sendMessage={sendMessage} />
+            <ChatRoom 
+                messages={messages} 
+                sendMessage={sendMessage}
+                connectedUsers={connectedUsers}
+                currentUser={userInfo}
+            />
         </div>
     );
 };

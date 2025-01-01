@@ -22,17 +22,24 @@ class PeerNetwork {
         this.connections = new Map(); // Stores active connections
         this.peerId = null;
         this.config = config;
+        this.userInfo = null; // Store user info
+        this.connectedUsers = new Map(); // Store user info: peerId -> userInfo
+        this.pendingUserInfoRequests = new Set(); // Track pending requests
         this.onPeerConnectedCallback = null;
         this.onPeerDisconnectedCallback = null;
         this.onNetworkReadyCallback = null;
         this.onMessageReceivedCallback = null;
+        this.onUserInfoUpdatedCallback = null;
+        this.hasAnnouncedUser = new Set();
     }
 
     /**
-     * Initialize the peer connection
+     * Initialize the peer connection with user information
+     * @param {Object} userInfo - User's name and color information
      * @returns {Promise<string>} The peer ID
      */
-    async initialize() {
+    async initialize(userInfo) {
+        this.userInfo = userInfo;
         return new Promise((resolve, reject) => {
             this.peer = new Peer(this.config);
 
@@ -69,29 +76,151 @@ class PeerNetwork {
     handleIncomingConnection(conn) {
         conn.on('open', () => {
             this.connections.set(conn.peer, conn);
+            
+            // Request user info immediately upon connection
+            this.requestUserInfo(conn.peer);
+            
+            // Share our user info
+            conn.send({
+                type: 'USER_INFO',
+                userInfo: this.userInfo
+            });
+
+            // Share our known users list
+            conn.send({
+                type: 'KNOWN_USERS',
+                users: Array.from(this.connectedUsers.entries())
+            });
+
             this.sharePeerList(conn);
             
             if (this.onPeerConnectedCallback) {
                 this.onPeerConnectedCallback(conn.peer);
             }
-            
-            // Broadcast system message about new peer
-            this.broadcastSystemMessage(`Peer ${conn.peer} has joined the network`);
         });
 
         conn.on('data', (data) => {
-            this.handlePeerMessage(conn.peer, data);
+            switch (data.type) {
+                case 'USER_INFO':
+                    this.handleUserInfo(conn.peer, data.userInfo);
+                    break;
+                case 'USER_INFO_REQUEST':
+                    this.handleUserInfoRequest(conn.peer);
+                    break;
+                case 'KNOWN_USERS':
+                    this.handleKnownUsers(data.users);
+                    break;
+                case 'PEER_LIST':
+                    this.handlePeerListMessage(data.peers);
+                    break;
+                case 'CHAT':
+                case 'SYSTEM':
+                    if (this.onMessageReceivedCallback) {
+                        this.onMessageReceivedCallback(data);
+                    }
+                    break;
+            }
         });
 
         conn.on('close', () => {
             this.connections.delete(conn.peer);
+            this.connectedUsers.delete(conn.peer);
+            this.pendingUserInfoRequests.delete(conn.peer);
+            
             if (this.onPeerDisconnectedCallback) {
                 this.onPeerDisconnectedCallback(conn.peer);
             }
-            
-            // Broadcast system message about peer disconnection
-            this.broadcastSystemMessage(`Peer ${conn.peer} has left the network`);
+
+            const displayName = this.getUserDisplayName(conn.peer);
+            this.broadcastSystemMessage(`${displayName} has left the network`);
         });
+    }
+
+    /**
+     * Handle received user info
+     * @private
+     * @param {string} peerId - The peer ID
+     * @param {Object} userInfo - The user information
+     */
+    handleUserInfo(peerId, userInfo) {
+        this.connectedUsers.set(peerId, userInfo);
+        this.pendingUserInfoRequests.delete(peerId);
+        
+        // Notify about new user
+        if (this.onUserInfoUpdatedCallback) {
+            this.onUserInfoUpdatedCallback(peerId, userInfo);
+        }
+
+        // Broadcast system message for new user
+        if (!this.hasAnnouncedUser.has(peerId)) {
+            this.broadcastSystemMessage(`${userInfo.name} has joined the network`);
+            this.hasAnnouncedUser.add(peerId);
+        }
+    }
+
+    /**
+     * Handle user info request
+     * @private
+     * @param {string} requestingPeerId - The requesting peer's ID
+     */
+    handleUserInfoRequest(requestingPeerId) {
+        const conn = this.connections.get(requestingPeerId);
+        if (conn) {
+            conn.send({
+                type: 'USER_INFO',
+                userInfo: this.userInfo
+            });
+        }
+    }
+
+    /**
+     * Handle received known users list
+     * @private
+     * @param {Array} users - Array of [peerId, userInfo] pairs
+     */
+    handleKnownUsers(users) {
+        users.forEach(([peerId, userInfo]) => {
+            if (!this.connectedUsers.has(peerId) && peerId !== this.peerId) {
+                this.connectedUsers.set(peerId, userInfo);
+                if (this.onUserInfoUpdatedCallback) {
+                    this.onUserInfoUpdatedCallback(peerId, userInfo);
+                }
+            }
+        });
+    }
+
+    /**
+     * Request user info from a peer
+     * @private
+     * @param {string} peerId - The peer to request from
+     */
+    requestUserInfo(peerId) {
+        if (!this.connectedUsers.has(peerId) && !this.pendingUserInfoRequests.has(peerId)) {
+            const conn = this.connections.get(peerId);
+            if (conn) {
+                conn.send({
+                    type: 'USER_INFO_REQUEST'
+                });
+                this.pendingUserInfoRequests.add(peerId);
+            }
+        }
+    }
+
+    /**
+     * Set callback for user info updates
+     * @param {Function} callback - Called with peerId and userInfo when user info is updated
+     */
+    onUserInfoUpdated(callback) {
+        this.onUserInfoUpdatedCallback = callback;
+    }
+
+    /**
+     * Get user info for a peer
+     * @param {string} peerId - The peer ID
+     * @returns {Object|null} The user info or null if not found
+     */
+    getUserInfo(peerId) {
+        return this.connectedUsers.get(peerId) || null;
     }
 
     /**
@@ -199,6 +328,7 @@ class PeerNetwork {
         const message = {
             type: 'CHAT',
             sender: this.peerId,
+            senderInfo: this.userInfo,
             content,
             timestamp: Date.now()
         };
@@ -207,7 +337,6 @@ class PeerNetwork {
             conn.send(message);
         });
 
-        // Also notify local listeners
         if (this.onMessageReceivedCallback) {
             this.onMessageReceivedCallback(message);
         }
@@ -242,6 +371,16 @@ class PeerNetwork {
         if (this.onMessageReceivedCallback) {
             this.onMessageReceivedCallback(message);
         }
+    }
+
+    getUserDisplayName(peerId) {
+        const userInfo = this.connectedUsers.get(peerId);
+        return userInfo ? userInfo.name : 'Unknown User';
+    }
+
+    getUserColor(peerId) {
+        const userInfo = this.connectedUsers.get(peerId);
+        return userInfo ? userInfo.color.value : '#999';
     }
 }
 
