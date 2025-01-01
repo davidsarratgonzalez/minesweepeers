@@ -3,6 +3,7 @@ import usePeerNetwork from '../hooks/usePeerNetwork';
 import ChatRoom from './ChatRoom';
 import './PeerNetworkManager.css';
 import UserSetup from './UserSetup';
+import GameConfig from './GameConfig';
 
 /**
  * Component for managing peer network connections and chat
@@ -48,6 +49,11 @@ const PeerNetworkManager = () => {
     const getUserName = (peerId) => {
         const user = connectedUsers.get(peerId);
         return user ? user.name : `Unknown (${peerId})`;
+    };
+
+    const handleStartGame = (config) => {
+        console.log('Starting game with config:', config);
+        // TODO: Implement game start logic
     };
 
     return (
@@ -109,6 +115,10 @@ const PeerNetworkManager = () => {
                         ))}
                     </ul>
                 </div>
+            </div>
+
+            <div className="game-container">
+                <GameConfig onStartGame={handleStartGame} />
             </div>
 
             <div className="chat-container">
