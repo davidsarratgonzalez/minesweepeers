@@ -92,31 +92,25 @@ class PeerNetwork {
         conn.on('open', () => {
             this.connections.set(conn.peer, conn);
             
-            // Request user info immediately upon connection
-            this.requestUserInfo(conn.peer);
-            
-            // Share our user info
-            conn.send({
-                type: 'USER_INFO',
-                userInfo: this.userInfo
-            });
-
-            // Share our known users list
-            conn.send({
-                type: 'KNOWN_USERS',
-                users: Array.from(this.connectedUsers.entries())
-            });
-
-            // Share current game config if we have it
-            if (this.currentGameConfig) {
+            // Share user info
+            if (this.userInfo) {
                 conn.send({
-                    type: 'GAME_CONFIG',
-                    config: this.currentGameConfig
+                    type: 'USER_INFO',
+                    peerId: this.peerId,
+                    userInfo: this.userInfo
                 });
             }
 
-            // Share current game state if we have it
-            if (this.currentGameState) {
+            // Share current game config if we have it
+            if (this.gameConfig) {
+                conn.send({
+                    type: 'GAME_CONFIG',
+                    config: this.gameConfig
+                });
+            }
+
+            // Share current game state ONLY if we're actively in a game
+            if (this.currentGameState && this.onGameBoardUpdatedCallback) {
                 conn.send({
                     type: 'GAME_STATE',
                     state: this.currentGameState
@@ -125,6 +119,7 @@ class PeerNetwork {
 
             this.sharePeerList(conn);
             
+            // Notify about new connection
             if (this.onPeerConnectedCallback) {
                 this.onPeerConnectedCallback(conn.peer);
             }

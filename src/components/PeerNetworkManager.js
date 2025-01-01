@@ -5,7 +5,7 @@ import './PeerNetworkManager.css';
 import UserSetup from './UserSetup';
 import GameConfig from './GameConfig';
 import Minesweeper from './Minesweeper';
-import { createBoard } from '../utils/minesweeperLogic';
+import { createEmptyBoard, placeMines } from '../utils/minesweeperLogic';
 
 /**
  * Component for managing peer network connections and chat
@@ -59,10 +59,11 @@ const PeerNetworkManager = () => {
     };
 
     const handleDisconnect = () => {
-        // Don't end game on disconnect
-        // if (gameState) {
-        //     endGame('Player disconnected');
-        // }
+        // Immediately end local game state without notifying peers
+        if (gameState) {
+            // Use local endGame without network propagation
+            endGame(null, false); // We'll need to modify endGame to accept a 'silent' parameter
+        }
         disconnectFromNetwork();
     };
 
@@ -78,7 +79,7 @@ const PeerNetworkManager = () => {
     };
 
     const handleStartGame = (config) => {
-        const initialBoard = createBoard(config.width, config.height, config.bombs);
+        const initialBoard = createEmptyBoard(config.width, config.height);
         startGame(config, initialBoard);
     };
 

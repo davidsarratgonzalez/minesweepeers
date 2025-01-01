@@ -1,26 +1,36 @@
 import { CELL_STATUS } from '../constants/gameTypes';
 
 /**
- * Creates a new board with randomly placed mines
+ * Creates an empty board without mines
  */
-export const createBoard = (width, height, mines) => {
-    // Initialize empty board
-    const board = Array(height).fill().map(() => 
+export const createEmptyBoard = (width, height) => {
+    return Array(height).fill().map(() => 
         Array(width).fill().map(() => ({
             isMine: false,
             status: CELL_STATUS.HIDDEN,
             adjacentMines: 0
         }))
     );
+};
 
-    // Place mines randomly
+/**
+ * Places mines on the board after first click
+ */
+export const placeMines = (board, mines, firstX, firstY) => {
+    const width = board[0].length;
+    const height = board.length;
+    const newBoard = board.map(row => row.map(cell => ({...cell})));
+    
     let minesPlaced = 0;
     while (minesPlaced < mines) {
         const x = Math.floor(Math.random() * width);
         const y = Math.floor(Math.random() * height);
 
-        if (!board[y][x].isMine) {
-            board[y][x].isMine = true;
+        // Don't place mine on first click or adjacent cells
+        const isNearFirstClick = Math.abs(x - firstX) <= 1 && Math.abs(y - firstY) <= 1;
+        
+        if (!newBoard[y][x].isMine && !isNearFirstClick) {
+            newBoard[y][x].isMine = true;
             minesPlaced++;
         }
     }
@@ -28,13 +38,13 @@ export const createBoard = (width, height, mines) => {
     // Calculate adjacent mines
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-            if (!board[y][x].isMine) {
-                board[y][x].adjacentMines = countAdjacentMines(board, x, y);
+            if (!newBoard[y][x].isMine) {
+                newBoard[y][x].adjacentMines = countAdjacentMines(newBoard, x, y);
             }
         }
     }
 
-    return board;
+    return newBoard;
 };
 
 /**
@@ -160,7 +170,8 @@ export const countFlags = (board) => {
  */
 export const createCellBlueprint = (cell) => ({
     status: cell.status,
-    value: cell.isMine ? 'mine' : (cell.status === CELL_STATUS.REVEALED ? cell.adjacentMines : null)
+    isMine: cell.isMine,
+    adjacentMines: cell.adjacentMines
 });
 
 /**
@@ -177,14 +188,17 @@ export const createBoardBlueprint = (board) => {
  */
 export const applyBoardBlueprint = (board, blueprint) => {
     return board.map((row, y) => 
-        row.map((cell, x) => ({
-            ...cell,
-            status: blueprint[y][x].status,
-            // Only update revealed state if the blueprint shows it
-            ...(blueprint[y][x].status === CELL_STATUS.REVEALED && {
-                isMine: blueprint[y][x].value === 'mine',
-                adjacentMines: blueprint[y][x].value === 'mine' ? 0 : blueprint[y][x].value
-            })
-        }))
+        row.map((cell, x) => {
+            const blueprintCell = blueprint[y][x];
+            return {
+                ...cell,
+                status: blueprintCell.status,
+                // Only update mine info if it's set in the blueprint
+                ...(blueprintCell.isMine !== undefined && {
+                    isMine: blueprintCell.isMine,
+                    adjacentMines: blueprintCell.adjacentMines
+                })
+            };
+        })
     );
 }; 

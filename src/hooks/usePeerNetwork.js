@@ -120,8 +120,13 @@ const usePeerNetwork = (config = {}) => {
         network.updateGameState(state);
     }, [network]);
 
-    const endGame = useCallback((reason) => {
-        network.broadcastGameOver(reason);
+    const endGame = useCallback((reason = null, propagate = true) => {
+        setGameState(null);
+        
+        // Only broadcast if propagate is true
+        if (propagate) {
+            network.broadcastGameOver(reason);
+        }
     }, [network]);
 
     return {

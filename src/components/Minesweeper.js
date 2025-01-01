@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Board from './Board';
 import GameHeader from './GameHeader';
-import { GAME_STATUS } from '../constants/gameTypes';
+import { CELL_STATUS, GAME_STATUS } from '../constants/gameTypes';
 import { 
     createBoard, 
     revealCell, 
@@ -10,7 +10,9 @@ import {
     checkWinCondition, 
     revealAllMines, 
     createBoardBlueprint, 
-    applyBoardBlueprint 
+    applyBoardBlueprint, 
+    createEmptyBoard, 
+    placeMines 
 } from '../utils/minesweeperLogic';
 import './Minesweeper.css';
 
@@ -26,15 +28,17 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [scrollPosition, setScrollPosition] = useState({ x: 0, y: 0 });
     const containerRef = useRef(null);
+    const [isFirstClick, setIsFirstClick] = useState(true);
+    const [minesPlaced, setMinesPlaced] = useState(false);
 
-    // Initialize board
+    // Initialize empty board
     useEffect(() => {
         if (!localBoard) {
-            const initialBoard = createBoard(config.width, config.height, config.bombs);
-            setLocalBoard(initialBoard);
+            const emptyBoard = createEmptyBoard(config.width, config.height);
+            setLocalBoard(emptyBoard);
             setFlagsCount(0);
         }
-    }, [config.width, config.height, config.bombs]);
+    }, [config.width, config.height, localBoard]);
 
     // Handle timer
     const handleGameOver = useCallback(() => {
@@ -74,7 +78,17 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
     const handleCellClick = (x, y) => {
         if (gameStatus !== GAME_STATUS.PLAYING) return;
 
-        const newBoard = revealCell(localBoard, x, y);
+        let newBoard;
+        if (isFirstClick) {
+            // On first click, place mines and reveal cell
+            newBoard = placeMines(localBoard, config.bombs, x, y);
+            setMinesPlaced(true);
+            setIsFirstClick(false);
+            newBoard = revealCell(newBoard, x, y);
+        } else {
+            newBoard = revealCell(localBoard, x, y);
+        }
+
         setLocalBoard(newBoard);
         
         // Send blueprint to peers
@@ -101,7 +115,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
         onGameUpdate(blueprint);
     };
 
-    const handleWin = () => {
+    const handleWin = useCallback(() => {
         setGameStatus(GAME_STATUS.WON);
         // Also reveal all mines when winning
         const revealedBoard = revealAllMines(localBoard);
@@ -114,7 +128,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
         setTimeout(() => {
             onGameOver();
         }, 5000);
-    };
+    }, [localBoard, onGameUpdate, onGameOver]);
 
     const handleMouseDown = (e) => {
         if (e.button !== 0) return; // Only left click
@@ -125,7 +139,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
         });
     };
 
-    const handleMouseMove = (e) => {
+    const handleMouseMove = useCallback((e) => {
         if (!isDragging) return;
         
         const newX = e.pageX - dragStart.x;
@@ -135,9 +149,9 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
             containerRef.current.scrollLeft = -newX;
             containerRef.current.scrollTop = -newY;
         }
-    };
+    }, [isDragging, dragStart]);
 
-    const handleMouseUp = () => {
+    const handleMouseUp = useCallback(() => {
         if (!isDragging) return;
         setIsDragging(false);
         if (containerRef.current) {
@@ -146,7 +160,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
                 y: -containerRef.current.scrollTop
             });
         }
-    };
+    }, [isDragging]);
 
     // Update scroll position when scrolling
     const handleScroll = () => {
@@ -165,16 +179,43 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver }) 
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [isDragging, dragStart]);
+    }, [handleMouseMove, handleMouseUp]);
 
     // Update board when receiving updates from network
     useEffect(() => {
         if (localBoard && networkBoard) {
+            // Only apply network updates if mines are placed or if receiving initial mine placement
             const updatedBoard = applyBoardBlueprint(localBoard, networkBoard);
+            
+            // Check if this update contains mine placements
+            const hasMinePlacement = updatedBoard.some(row => 
+                row.some(cell => cell.isMine)
+            );
+
+            if (hasMinePlacement) {
+                setMinesPlaced(true);
+                setIsFirstClick(false);
+            }
+
             setLocalBoard(updatedBoard);
             setFlagsCount(countFlags(updatedBoard));
+
+            // Check for revealed mines only if mines are placed
+            if (minesPlaced) {
+                const hasRevealedMine = updatedBoard.some(row => 
+                    row.some(cell => 
+                        cell.status === CELL_STATUS.REVEALED && cell.isMine
+                    )
+                );
+
+                if (hasRevealedMine && gameStatus === GAME_STATUS.PLAYING) {
+                    handleGameOver();
+                } else if (checkWinCondition(updatedBoard)) {
+                    handleWin();
+                }
+            }
         }
-    }, [networkBoard]);
+    }, [networkBoard, gameStatus, handleGameOver, handleWin, localBoard, minesPlaced]);
 
     return (
         <div className="minesweeper">
