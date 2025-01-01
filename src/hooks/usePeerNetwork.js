@@ -16,7 +16,6 @@ const usePeerNetwork = (config = {}) => {
     const [messages, setMessages] = useState([]);
     const [gameConfig, setGameConfig] = useState(null);
     const [gameState, setGameState] = useState(null);
-    const cleanupTimerRef = useRef(null);
 
     const initializeWithUser = useCallback(async (userInfo) => {
         try {
@@ -79,30 +78,18 @@ const usePeerNetwork = (config = {}) => {
         });
 
         network.onGameOver(() => {
-            // Clear the previous timer if it exists
-            if (cleanupTimerRef.current) {
-                clearTimeout(cleanupTimerRef.current);
-                cleanupTimerRef.current = null;
-            }
-
-            // Clear network state immediately
+            // Clear ALL state IMMEDIATELY without any timeouts
             network.currentGameState = null;
             network.currentGameConfig = null;
             network.gameConfig = null;
             
-            // Set the new timer
-            cleanupTimerRef.current = setTimeout(() => {
-                setGameState(null);
-                setGameConfig(null);
-                cleanupTimerRef.current = null;
-            }, 3000);
+            // Clear local state IMMEDIATELY
+            setGameState(null);
+            setGameConfig(null);
         });
 
         return () => {
-            // Clean up timer on unmount
-            if (cleanupTimerRef.current) {
-                clearTimeout(cleanupTimerRef.current);
-            }
+            // Clean up IMMEDIATELY on unmount
             network.currentGameState = null;
             network.currentGameConfig = null;
             network.gameConfig = null;
@@ -143,13 +130,7 @@ const usePeerNetwork = (config = {}) => {
     }, [network]);
 
     const endGame = useCallback((reason = null, propagate = true) => {
-        // Clear any existing cleanup timer
-        if (cleanupTimerRef.current) {
-            clearTimeout(cleanupTimerRef.current);
-            cleanupTimerRef.current = null;
-        }
-
-        // Clear all state immediately
+        // Clear ALL state IMMEDIATELY
         network.currentGameState = null;
         network.currentGameConfig = null;
         network.gameConfig = null;

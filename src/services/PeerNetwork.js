@@ -101,16 +101,16 @@ class PeerNetwork {
                 });
             }
 
-            // Share current game config if we have it
-            if (this.gameConfig) {
+            // Share current game config if we have it and we're not in a game
+            if (this.currentGameConfig && !this.currentGameState) {
                 conn.send({
                     type: 'GAME_CONFIG',
-                    config: this.gameConfig
+                    config: this.currentGameConfig
                 });
             }
 
-            // Share current game state ONLY if we're actively in a game
-            if (this.currentGameState && this.onGameBoardUpdatedCallback) {
+            // Share current game state if we're in an active game
+            if (this.currentGameState?.board) {
                 conn.send({
                     type: 'GAME_STATE',
                     state: this.currentGameState
@@ -119,7 +119,6 @@ class PeerNetwork {
 
             this.sharePeerList(conn);
             
-            // Notify about new connection
             if (this.onPeerConnectedCallback) {
                 this.onPeerConnectedCallback(conn.peer);
             }
@@ -465,6 +464,11 @@ class PeerNetwork {
      * Start a new game and broadcast to peers
      */
     startGame(config, board) {
+        // Clear any existing game state first
+        this.currentGameState = null;
+        this.currentGameConfig = null;
+        
+        // Set new game state
         this.currentGameState = { config, board };
         const message = {
             type: 'GAME_START',
@@ -485,6 +489,9 @@ class PeerNetwork {
      * Update game state and broadcast to peers
      */
     updateGameState(state) {
+        // Only update if we're in a game
+        if (!this.currentGameState) return;
+
         this.currentGameState = state;
         const message = {
             type: 'GAME_STATE',
@@ -504,10 +511,12 @@ class PeerNetwork {
      * Broadcast game over to peers
      */
     broadcastGameOver(reason) {
-        // Clear our own game state first
+        // Clear our own game state IMMEDIATELY
         this.currentGameState = null;
         this.currentGameConfig = null;
+        this.gameConfig = null;
 
+        // Send game over to peers IMMEDIATELY
         const message = {
             type: 'GAME_OVER',
             reason
@@ -517,6 +526,7 @@ class PeerNetwork {
             conn.send(message);
         });
 
+        // Notify local listeners IMMEDIATELY
         if (this.onGameOverCallback) {
             this.onGameOverCallback(reason);
         }
@@ -538,9 +548,10 @@ class PeerNetwork {
     }
 
     handleGameOver(reason) {
-        // Clear the current game state immediately
+        // Clear ALL state IMMEDIATELY
         this.currentGameState = null;
         this.currentGameConfig = null;
+        this.gameConfig = null;
 
         if (this.onGameOverCallback) {
             this.onGameOverCallback(reason);
