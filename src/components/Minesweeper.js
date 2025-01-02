@@ -151,9 +151,12 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
         setLocalBoard(newBoard);
         setFlagsCount(countFlags(newBoard));
         
-        // Send blueprint to peers
+        // Send blueprint to peers with full state structure
         const blueprint = createBoardBlueprint(newBoard);
-        onGameUpdate(blueprint);
+        onGameUpdate({
+            board: blueprint,
+            config: config
+        });
     };
 
     const handleWin = useCallback(() => {
@@ -161,8 +164,12 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
         const revealedBoard = revealAllMines(localBoard);
         setLocalBoard(revealedBoard);
         
+        // Send blueprint to peers with full state structure
         const blueprint = createBoardBlueprint(revealedBoard);
-        onGameUpdate(blueprint);
+        onGameUpdate({
+            board: blueprint,
+            config: config
+        });
         
         if (timerRef.current) {
             clearInterval(timerRef.current);
@@ -179,7 +186,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
                 return prev - 1;
             });
         }, 1000);
-    }, [localBoard, onGameUpdate, onGameOver]);
+    }, [localBoard, onGameUpdate, onGameOver, config]);
 
     const handleMouseDown = (e) => {
         if (e.button !== 0) return; // Only left click
