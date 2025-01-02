@@ -58,14 +58,19 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
 
     // Handle timer
     const handleGameOver = useCallback(() => {
-        setGameStatus(GAME_STATUS.LOST);
+        // First reveal all mines in the local board
         const revealedBoard = revealAllMines(localBoard);
         setLocalBoard(revealedBoard);
+        setGameStatus(GAME_STATUS.LOST);
         
+        // Create and send the blueprint so others can see the mines too
         const blueprint = createBoardBlueprint(revealedBoard);
-        onGameUpdate(blueprint);
+        onGameUpdate({
+            board: blueprint,
+            config: config
+        });
         
-        // Store timer reference so we can clear it
+        // Start countdown to return to lobby
         setCountdown(3);
         if (timerRef.current) {
             clearInterval(timerRef.current);
@@ -81,7 +86,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
                 return prev - 1;
             });
         }, 1000);
-    }, [localBoard, onGameUpdate, onGameOver]);
+    }, [localBoard, onGameUpdate, onGameOver, config]);
 
     useEffect(() => {
         if (gameStatus === GAME_STATUS.PLAYING) {
