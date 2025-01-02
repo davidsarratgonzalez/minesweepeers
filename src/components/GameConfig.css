@@ -1,40 +1,61 @@
 .game-config {
-    max-width: 650px;
+    width: 350px;
+    min-width: 350px;
+    max-height: 90vh;
     margin: auto;
-    padding: 40px 20px 20px;
-    background-color: white;
+    padding: 20px;
+    background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+}
+
+.game-config form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.game-container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    overflow: auto;
 }
 
 .game-config h2 {
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
     margin-top: 0;
     color: #333;
 }
 
 .presets {
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 }
 
 .presets h3 {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     color: #666;
     font-size: 16px;
 }
 
 .preset-buttons {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
+    justify-content: space-between;
 }
 
 .preset-button {
+    flex: 1;
+    min-width: calc(33% - 8px);
+    text-align: center;
     padding: 8px 16px;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -53,12 +74,8 @@
     border-color: #2196F3;
 }
 
-.config-group {
-    margin-bottom: 24px;
-}
-
 .config-group h3 {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     color: #666;
     font-size: 16px;
 }
