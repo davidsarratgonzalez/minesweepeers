@@ -1,8 +1,8 @@
 {
-  "name": "peer-minesweeper",
+  "name": "minesweepeers",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://davidsarratgonzalez.github.io/peer-minesweeper",
+  "homepage": "https://davidsarratgonzalez.github.io/minesweepeers",
   "dependencies": {
     "cra-template": "1.2.0",
     "peerjs": "^1.5.2",

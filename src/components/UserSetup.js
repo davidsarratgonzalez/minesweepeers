@@ -21,7 +21,7 @@ const UserSetup = ({ onComplete }) => {
 
     return (
         <div className="user-setup">
-            <h1 data-testid="user-setup-header">Peer Minesweeper</h1>
+            <h1 data-testid="user-setup-header">Minesweepeers</h1>
             <form onSubmit={handleSubmit}>
                 <div className="form-group">
                     <label htmlFor="username">Your name</label>

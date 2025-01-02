@@ -26,7 +26,7 @@ const MobileBlocker = () => {
         <h1>Desktop only!</h1>
         <p>This game is designed for desktop use only. Please access it from a desktop computer.</p>
         <a 
-          href="https://github.com/davidsarratgonzalez/peer-minesweeper"
+          href="https://github.com/davidsarratgonzalez/minesweepeers"
           target="_blank"
           rel="noopener noreferrer"
           className="repo-link"
