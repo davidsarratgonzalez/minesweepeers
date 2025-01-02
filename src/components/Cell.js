@@ -29,10 +29,18 @@ const Cell = ({ cell, onClick, onRightClick, gameStatus }) => {
         return className;
     };
 
+    const handleClick = (e) => {
+        // Prevent click if the cell is flagged
+        if (cell.status === CELL_STATUS.FLAGGED) {
+            return;
+        }
+        onClick(e);
+    };
+
     return (
         <button
             className={getCellClass()}
-            onClick={onClick}
+            onClick={handleClick}
             onContextMenu={onRightClick}
             disabled={cell.status === CELL_STATUS.REVEALED}
         >

@@ -75,6 +75,7 @@ const isValidCell = (board, x, y) => {
  * Reveals a cell and its adjacent cells if empty
  */
 export const revealCell = (board, x, y) => {
+    // Early return if the cell is invalid, revealed, or flagged
     if (!isValidCell(board, x, y) || 
         board[y][x].status === CELL_STATUS.REVEALED || 
         board[y][x].status === CELL_STATUS.FLAGGED) {
@@ -86,6 +87,7 @@ export const revealCell = (board, x, y) => {
     
     // Function to reveal a single cell
     const reveal = (x, y) => {
+        // Also check for flagged status in the recursive reveal
         if (!isValidCell(newBoard, x, y) || 
             newBoard[y][x].status === CELL_STATUS.REVEALED || 
             newBoard[y][x].status === CELL_STATUS.FLAGGED) {
