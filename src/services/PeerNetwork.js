@@ -644,28 +644,40 @@ class PeerNetwork {
     }
 
     /**
-     * Updates game state and broadcasts changes to all peers
-     * @param {Object} state - New game state with updated board
+     * Updates game state and broadcasts to all peers
+     * @param {Object} state - Current game state to broadcast
      */
     updateGameState(state) {
-        if (!this.currentGameState) return;
+        // Ensure timer values are valid integers
+        if (state.config?.timer) {
+            state.config.timer = {
+                ...state.config.timer,
+                minutes: Math.max(0, Math.floor(state.config.timer.minutes || 0)),
+                seconds: Math.max(0, Math.floor(state.config.timer.seconds || 0))
+            };
+        }
 
-        this.currentGameState = {
-            ...this.currentGameState,
-            board: state.board
-        };
+        // Ensure startTime is a valid number
+        if (!state.startTime || isNaN(state.startTime)) {
+            state.startTime = Date.now();
+        }
 
+        this.currentGameState = state;
         const message = {
             type: 'GAME_STATE',
-            state: this.currentGameState
+            state
         };
 
         this.connections.forEach(conn => {
-            conn.send(message);
+            try {
+                conn.send(message);
+            } catch (error) {
+                console.warn('Failed to send game state:', error);
+            }
         });
 
         if (this.onGameBoardUpdatedCallback) {
-            this.onGameBoardUpdatedCallback(this.currentGameState);
+            this.onGameBoardUpdatedCallback(state);
         }
     }
 
@@ -706,11 +718,25 @@ class PeerNetwork {
     }
 
     /**
-     * Handles game state updates from peers
+     * Handles received game state updates
      * @private
      * @param {Object} state - Updated game state
      */
     handleGameState(state) {
+        // Sanitize timer values
+        if (state.config?.timer) {
+            state.config.timer = {
+                ...state.config.timer,
+                minutes: Math.max(0, Math.floor(state.config.timer.minutes || 0)),
+                seconds: Math.max(0, Math.floor(state.config.timer.seconds || 0))
+            };
+        }
+
+        // Ensure startTime is valid
+        if (!state.startTime || isNaN(state.startTime)) {
+            state.startTime = Date.now();
+        }
+
         this.currentGameState = state;
         if (this.onGameBoardUpdatedCallback) {
             this.onGameBoardUpdatedCallback(state);
