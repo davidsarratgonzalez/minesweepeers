@@ -1,6 +1,10 @@
 import Peer from 'peerjs';
 import { createBoardBlueprint } from '../utils/minesweeperLogic';
 
+// Network constants
+const HEARTBEAT_INTERVAL = 5000; // Send heartbeat every 5 seconds
+const HEARTBEAT_TIMEOUT = 15000; // Consider peer disconnected after 15 seconds of no heartbeat
+
 /**
  * Represents a chat or system message in the network
  * @typedef {Object} ChatMessage
@@ -19,16 +23,32 @@ import { createBoardBlueprint } from '../utils/minesweeperLogic';
  */
 
 /**
+ * Represents a heartbeat message
+ * @typedef {Object} HeartbeatMessage
+ * @property {string} type - Always 'HEARTBEAT'
+ * @property {string} peerId - ID of sending peer
+ * @property {number} timestamp - Timestamp of heartbeat
+ */
+
+/**
  * Manages peer-to-peer connections and network topology for multiplayer functionality.
  * Handles peer discovery, message broadcasting, game state synchronization and cursor tracking.
  * @class PeerNetwork
  */
 class PeerNetwork {
+    static instance = null;
+
     /**
-     * Creates a new PeerNetwork instance
+     * Creates a new PeerNetwork instance or returns existing singleton
      * @param {Object} config - PeerJS configuration options for customizing the peer connection
      */
     constructor(config = {}) {
+        if (PeerNetwork.instance) {
+            return PeerNetwork.instance;
+        }
+        
+        PeerNetwork.instance = this;
+
         // Core networking
         this.peer = null;
         this.peerId = null;
@@ -67,6 +87,12 @@ class PeerNetwork {
         this.onGameStartedCallback = null;
         this.onGameOverCallback = null;
         this.onCursorUpdateCallback = null;
+
+        // Heartbeat tracking
+        this.heartbeatInterval = null;
+        this.lastHeartbeats = new Map();
+        this.reconnectionAttempts = new Map();
+        this.MAX_RECONNECTION_ATTEMPTS = 3;
     }
 
     /**
@@ -75,34 +101,38 @@ class PeerNetwork {
      * @returns {Promise<string>} Resolves with the assigned peer ID
      */
     async initialize(userInfo) {
-        this.userInfo = userInfo;
-        if (!this.peer || this.destroyed) {
-            this.destroyed = false;
-            return new Promise((resolve, reject) => {
-                this.peer = new Peer(this.config);
-
-                this.peer.on('open', (id) => {
-                    this.peerId = id;
-                    this.setupEventListeners();
-                    if (this.onNetworkReadyCallback) {
-                        this.onNetworkReadyCallback(id);
-                    }
-                    resolve(id);
-                });
-
-                this.peer.on('error', (error) => {
-                    // Only try to reconnect if the peer is destroyed and it's not a "peer-unavailable" error
-                    if (error.type === 'peer-unavailable') {
-                        console.warn('Peer unavailable:', error.message);
-                    } else if (this.destroyed) {
-                        // Attempt a reconnection if this was a temporary issue
-                        this.peer.reconnect();
-                    }
-                    reject(error);
-                });
-            });
+        // If we already have a peer, destroy it first
+        if (this.peer) {
+            this.peer.destroy();
+            this.peer = null;
+            this.peerId = null;
         }
-        return this.peerId;
+
+        this.userInfo = userInfo;
+        this.destroyed = false;
+
+        return new Promise((resolve, reject) => {
+            this.peer = new Peer(this.config);
+
+            this.peer.on('open', (id) => {
+                this.peerId = id;
+                this.setupEventListeners();
+                this.startHeartbeat(); // Start heartbeat after successful initialization
+                if (this.onNetworkReadyCallback) {
+                    this.onNetworkReadyCallback(id);
+                }
+                resolve(id);
+            });
+
+            this.peer.on('error', (error) => {
+                if (error.type === 'peer-unavailable') {
+                    console.warn('Peer unavailable:', error.message);
+                } else if (this.destroyed) {
+                    this.peer.reconnect();
+                }
+                reject(error);
+            });
+        });
     }
 
     /**
@@ -133,7 +163,7 @@ class PeerNetwork {
                 });
             }
 
-            // Only share game config if we're being connected to (we're the "host")
+            // Only share game config if this is a new connection (not reconnection attempt)
             if (!this.outgoingConnections.has(conn.peer)) {
                 if (this.currentGameConfig && !this.currentGameState) {
                     conn.send({
@@ -171,11 +201,17 @@ class PeerNetwork {
                 }
             }
 
-            this.sharePeerList(conn);
+            // Only share peer list after successful connection
+            if (!this.outgoingConnections.has(conn.peer)) {
+                this.sharePeerList(conn);
+            }
             
             if (this.onPeerConnectedCallback) {
                 this.onPeerConnectedCallback(conn.peer);
             }
+
+            // Initialize heartbeat tracking for this peer
+            this.lastHeartbeats.set(conn.peer, Date.now());
         });
 
         conn.on('data', (data) => {
@@ -216,6 +252,9 @@ class PeerNetwork {
                 case 'DISCONNECT':
                     this.handlePeerDisconnectMessage(data.peerId, data.reason);
                     break;
+                case 'HEARTBEAT':
+                    this.lastHeartbeats.set(conn.peer, Date.now());
+                    break;
                 default:
                     console.warn('Unknown message type:', data.type);
                     break;
@@ -243,6 +282,9 @@ class PeerNetwork {
             if (this.onPeerDisconnectedCallback) {
                 this.onPeerDisconnectedCallback(conn.peer);
             }
+
+            this.lastHeartbeats.delete(conn.peer);
+            this.reconnectionAttempts.delete(conn.peer);
         });
     }
 
@@ -424,15 +466,12 @@ class PeerNetwork {
     }
 
     /**
-     * Disconnects from current peers while maintaining ability to reconnect
-     * Ensures clean disconnection and proper state cleanup
+     * Disconnects from current peers and destroys current peer
      * @param {string} [reason='manual'] - Reason for disconnection
-     * @param {boolean} [destroyPeer=false] - Whether to completely destroy the peer connection
      */
-    disconnect(reason = 'manual', destroyPeer = false) {
+    disconnect(reason = 'manual') {
         if (!this.peer) return;
 
-        // First notify all peers that we're disconnecting
         const disconnectMessage = {
             type: 'DISCONNECT',
             peerId: this.peerId,
@@ -467,7 +506,6 @@ class PeerNetwork {
             this.hasAnnouncedUser.clear();
             this.cursorTimestamps.clear();
 
-            // Stop cursor cleanup interval
             if (this.cursorCleanupInterval) {
                 clearInterval(this.cursorCleanupInterval);
                 this.cursorCleanupInterval = null;
@@ -478,14 +516,26 @@ class PeerNetwork {
             this.currentGameConfig = null;
             this.gameConfig = null;
 
-            // Only destroy peer if explicitly requested
-            if (destroyPeer) {
+            // Destroy the current peer completely
+            if (this.peer) {
                 this.peer.destroy();
                 this.peer = null;
-                this.destroyed = true;
                 this.peerId = null;
             }
-        }, 100); // Small delay to ensure messages are sent
+
+            // Generate new peer immediately
+            this.initialize(this.userInfo).catch(error => {
+                console.error('Failed to initialize new peer after disconnect:', error);
+            });
+        }, 100);
+
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
+
+        this.lastHeartbeats.clear();
+        this.reconnectionAttempts.clear();
     }
 
     /**
@@ -941,7 +991,11 @@ class PeerNetwork {
         this.outgoingConnections.delete(peerId);
         this.connectedUsers.delete(peerId);
         this.pendingUserInfoRequests.delete(peerId);
-        this.hasAnnouncedUser.delete(peerId);
+
+        // For manual disconnects, ensure the peer will get a new join notification when they reconnect
+        if (reason === 'manual' && this.notificationTracker) {
+            this.notificationTracker.handleManualDisconnect(peerId);
+        }
 
         // Handle cursor cleanup
         this.handlePeerDisconnected(peerId);
@@ -960,6 +1014,78 @@ class PeerNetwork {
         // Trigger disconnect callback
         if (this.onPeerDisconnectedCallback) {
             this.onPeerDisconnectedCallback(peerId);
+        }
+    }
+
+    /**
+     * Starts the heartbeat mechanism
+     * @private
+     */
+    startHeartbeat() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+        }
+
+        this.heartbeatInterval = setInterval(() => {
+            // Send heartbeat to all connections
+            this.connections.forEach(conn => {
+                try {
+                    conn.send({
+                        type: 'HEARTBEAT',
+                        peerId: this.peerId,
+                        timestamp: Date.now()
+                    });
+                } catch (error) {
+                    console.warn('Failed to send heartbeat:', error);
+                }
+            });
+
+            // Check for stale connections
+            this.checkStaleConnections();
+        }, HEARTBEAT_INTERVAL);
+    }
+
+    /**
+     * Checks for stale connections and attempts reconnection if needed
+     * @private
+     */
+    checkStaleConnections() {
+        const now = Date.now();
+        this.lastHeartbeats.forEach((lastHeartbeat, peerId) => {
+            if (now - lastHeartbeat > HEARTBEAT_TIMEOUT) {
+                // Only attempt reconnection if we haven't exceeded max attempts
+                const attempts = this.reconnectionAttempts.get(peerId) || 0;
+                if (attempts < this.MAX_RECONNECTION_ATTEMPTS) {
+                    this.attemptReconnection(peerId);
+                }
+            }
+        });
+    }
+
+    /**
+     * Attempts to reconnect to a peer
+     * @private
+     * @param {string} peerId - ID of peer to reconnect to
+     */
+    async attemptReconnection(peerId) {
+        const attempts = (this.reconnectionAttempts.get(peerId) || 0) + 1;
+        this.reconnectionAttempts.set(peerId, attempts);
+
+        console.log(`Attempting reconnection to ${peerId} (attempt ${attempts})`);
+
+        try {
+            await this.connectToPeer(peerId);
+            // Reset reconnection attempts on successful connection
+            this.reconnectionAttempts.delete(peerId);
+        } catch (error) {
+            console.warn(`Reconnection attempt ${attempts} to ${peerId} failed:`, error);
+            
+            // If we've exceeded max attempts, clean up the peer
+            if (attempts >= this.MAX_RECONNECTION_ATTEMPTS) {
+                this.handlePeerDisconnected(peerId);
+                this.reconnectionAttempts.delete(peerId);
+                this.lastHeartbeats.delete(peerId);
+            }
         }
     }
 }
