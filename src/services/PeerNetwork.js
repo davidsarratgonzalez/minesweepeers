@@ -144,23 +144,29 @@ class PeerNetwork {
 
                 // Share current game state if we're in an active game
                 if (this.currentGameState?.board) {
-                    // Get the current timer values from the game state's config
+                    // Calculate remaining time
                     const currentTimer = this.currentGameState.config.timer;
                     const totalSeconds = currentTimer.minutes * 60 + currentTimer.seconds;
                     const elapsedSeconds = Math.floor((Date.now() - this.currentGameState.startTime) / 1000);
                     const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
 
-                    // Update the timer in the current game state
-                    this.currentGameState.config.timer = {
-                        ...currentTimer,
-                        minutes: Math.floor(remainingSeconds / 60),
-                        seconds: remainingSeconds % 60,
-                        enabled: currentTimer.enabled
+                    // Create a new state object with updated timer
+                    const stateToSend = {
+                        ...this.currentGameState,
+                        config: {
+                            ...this.currentGameState.config,
+                            timer: {
+                                ...currentTimer,
+                                minutes: Math.floor(remainingSeconds / 60),
+                                seconds: remainingSeconds % 60,
+                                enabled: currentTimer.enabled
+                            }
+                        }
                     };
 
                     conn.send({
                         type: 'GAME_STATE',
-                        state: this.currentGameState
+                        state: stateToSend
                     });
                 }
             }
