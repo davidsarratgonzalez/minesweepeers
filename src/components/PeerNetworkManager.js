@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import usePeerNetwork from '../hooks/usePeerNetwork';
 import ChatRoom from './ChatRoom';
 import './PeerNetworkManager.css';
@@ -36,6 +36,7 @@ const PeerNetworkManager = () => {
     } = usePeerNetwork();
     const [copyFeedback, setCopyFeedback] = useState(false);
     const [connectionError, setConnectionError] = useState('');
+    const lastCursorPosition = useRef(null);
 
     useEffect(() => {
         // Remove this effect since we want to allow solo play
@@ -43,6 +44,21 @@ const PeerNetworkManager = () => {
         //     endGame('All players disconnected');
         // }
     }, [connectedPeers.length, gameState, endGame]);
+
+    useEffect(() => {
+        if (!gameState) return; // Only track cursors during game
+
+        const cursorInterval = setInterval(() => {
+            if (lastCursorPosition.current) {
+                broadcastCursorPosition(lastCursorPosition.current);
+            }
+        }, 2000); // Resend every 2 seconds
+
+        return () => {
+            clearInterval(cursorInterval);
+            lastCursorPosition.current = null;
+        };
+    }, [gameState, broadcastCursorPosition]);
 
     if (!userInfo) {
         return <UserSetup onComplete={initializeWithUser} />;
@@ -108,6 +124,10 @@ const PeerNetworkManager = () => {
     };
 
     const handleCursorMove = (position) => {
+        if (!position) return;
+        
+        // Store the last position to resend
+        lastCursorPosition.current = position;
         broadcastCursorPosition(position);
     };
 

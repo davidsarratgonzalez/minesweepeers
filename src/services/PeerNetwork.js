@@ -40,6 +40,9 @@ class PeerNetwork {
         this.onCursorUpdateCallback = null;
         this.outgoingConnections = new Set(); // Track connections we initiated
         this.messages = [];
+        this.cursorTimestamps = new Map(); // Track last cursor update time
+        this.cursorCleanupInterval = null;
+        this.CURSOR_TIMEOUT = 7000; // Increase timeout to 7 seconds to account for network delays
     }
 
     /**
@@ -395,6 +398,8 @@ class PeerNetwork {
             this.peer.destroy();
         }
         this.outgoingConnections.clear();
+        this.stopCursorCleanup();
+        this.cursorTimestamps.clear();
     }
 
     /**
@@ -623,18 +628,43 @@ class PeerNetwork {
         this.onGameOverCallback = callback;
     }
 
+    /**
+     * Broadcast cursor position to all peers
+     * @param {Object} position - The cursor position {x, y}
+     */
     broadcastCursorPosition(position) {
+        if (!position) return;
+
         const message = {
             type: 'CURSOR_UPDATE',
-            position
+            position,
+            timestamp: Date.now() // Add timestamp to the message
         };
 
         this.connections.forEach(conn => {
             conn.send(message);
         });
+
+        // Update own timestamp when broadcasting
+        this.cursorTimestamps.set(this.peerId, Date.now());
+        if (!this.cursorCleanupInterval) {
+            this.startCursorCleanup();
+        }
     }
 
     handleCursorUpdate(peerId, position) {
+        // Update timestamp when cursor data is received
+        if (position) {
+            this.cursorTimestamps.set(peerId, Date.now());
+            // Start cleanup if not already running
+            if (!this.cursorCleanupInterval) {
+                this.startCursorCleanup();
+            }
+        } else {
+            // If position is null, remove the timestamp
+            this.cursorTimestamps.delete(peerId);
+        }
+
         if (this.onCursorUpdateCallback) {
             this.onCursorUpdateCallback(peerId, position);
         }
@@ -649,6 +679,10 @@ class PeerNetwork {
         if (this.onCursorUpdateCallback) {
             // Send null position to remove cursor
             this.onCursorUpdateCallback(peerId, null);
+        }
+        this.cursorTimestamps.delete(peerId);
+        if (this.cursorTimestamps.size === 0) {
+            this.stopCursorCleanup();
         }
     }
 
@@ -672,6 +706,49 @@ class PeerNetwork {
 
         // Fallback to calculating from start time
         return config.timer;
+    }
+
+    /**
+     * Start cursor cleanup interval
+     * @private
+     */
+    startCursorCleanup() {
+        // Clear any existing interval first
+        if (this.cursorCleanupInterval) {
+            clearInterval(this.cursorCleanupInterval);
+        }
+
+        this.cursorCleanupInterval = setInterval(() => {
+            const now = Date.now();
+            let hasRemovals = false;
+
+            this.cursorTimestamps.forEach((timestamp, peerId) => {
+                if (now - timestamp > this.CURSOR_TIMEOUT) {
+                    // Remove stale cursor
+                    this.cursorTimestamps.delete(peerId);
+                    if (this.onCursorUpdateCallback) {
+                        this.onCursorUpdateCallback(peerId, null);
+                    }
+                    hasRemovals = true;
+                }
+            });
+
+            // If no cursors left, clear the interval
+            if (hasRemovals && this.cursorTimestamps.size === 0) {
+                this.stopCursorCleanup();
+            }
+        }, 1000); // Check every second
+    }
+
+    /**
+     * Stop cursor cleanup interval
+     * @private
+     */
+    stopCursorCleanup() {
+        if (this.cursorCleanupInterval) {
+            clearInterval(this.cursorCleanupInterval);
+            this.cursorCleanupInterval = null;
+        }
     }
 }
 
