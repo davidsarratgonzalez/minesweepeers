@@ -1,4 +1,5 @@
 import Peer from 'peerjs';
+import { createBoardBlueprint } from '../utils/minesweeperLogic';
 
 /**
  * @typedef {Object} ChatMessage
@@ -115,6 +116,20 @@ class PeerNetwork {
 
                 // Share current game state if we're in an active game
                 if (this.currentGameState?.board) {
+                    // Get the current timer values from the game state's config
+                    const currentTimer = this.currentGameState.config.timer;
+                    const totalSeconds = currentTimer.minutes * 60 + currentTimer.seconds;
+                    const elapsedSeconds = Math.floor((Date.now() - this.currentGameState.startTime) / 1000);
+                    const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
+
+                    // Update the timer in the current game state
+                    this.currentGameState.config.timer = {
+                        ...currentTimer,
+                        minutes: Math.floor(remainingSeconds / 60),
+                        seconds: remainingSeconds % 60,
+                        enabled: currentTimer.enabled
+                    };
+
                     conn.send({
                         type: 'GAME_STATE',
                         state: this.currentGameState
@@ -451,6 +466,14 @@ class PeerNetwork {
      * @param {Object} config - The game configuration
      */
     handleGameConfig(config) {
+        if (this.currentGameState?.board) {
+            // If we're in a game, update the timer in the config
+            config = {
+                ...config,
+                timer: this.getCurrentTimerState(config)
+            };
+        }
+        
         this.currentGameConfig = config;
         if (this.onGameConfigUpdatedCallback) {
             this.onGameConfigUpdatedCallback(config);
@@ -490,7 +513,11 @@ class PeerNetwork {
         this.currentGameConfig = null;
         
         // Set new game state
-        this.currentGameState = { config, board };
+        this.currentGameState = { 
+            config, 
+            board,
+            startTime: Date.now()
+        };
         const message = {
             type: 'GAME_START',
             config,
@@ -510,13 +537,17 @@ class PeerNetwork {
      * Update game state and broadcast to peers
      */
     updateGameState(state) {
-        // Only update if we're in a game
         if (!this.currentGameState) return;
 
-        this.currentGameState = state;
+        // The board is already a blueprint, no need to convert
+        this.currentGameState = {
+            ...this.currentGameState,
+            board: state.board  // Use the blueprint directly
+        };
+
         const message = {
             type: 'GAME_STATE',
-            state
+            state: this.currentGameState
         };
 
         this.connections.forEach(conn => {
@@ -524,7 +555,7 @@ class PeerNetwork {
         });
 
         if (this.onGameBoardUpdatedCallback) {
-            this.onGameBoardUpdatedCallback(state);
+            this.onGameBoardUpdatedCallback(this.currentGameState);
         }
     }
 
@@ -631,6 +662,16 @@ class PeerNetwork {
         if (this.onMessageReceivedCallback) {
             this.onMessageReceivedCallback(message);
         }
+    }
+
+    getCurrentTimerState(config) {
+        // If we have an active game timer, use that
+        if (this.currentGameState?.getCurrentTimerState) {
+            return this.currentGameState.getCurrentTimerState();
+        }
+
+        // Fallback to calculating from start time
+        return config.timer;
     }
 }
 

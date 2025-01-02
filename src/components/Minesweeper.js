@@ -98,8 +98,13 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
         if (timer.isCountdown && timer.currentSeconds === 0 && gameStatus === GAME_STATUS.PLAYING) {
             const revealedBoard = revealAllMines(localBoard);
             setLocalBoard(revealedBoard);
-            const blueprint = createBoardBlueprint(revealedBoard);
-            onGameUpdate(blueprint);
+            
+            // Send the full state update
+            onGameUpdate({
+                ...config,  // Include all config
+                board: revealedBoard  // Send the actual board, not the blueprint
+            });
+            
             handleGameOver();
         }
     }, [timer.currentSeconds, timer.isCountdown, gameStatus]);
@@ -117,14 +122,15 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
             newBoard = revealCell(localBoard, x, y);
         }
 
-        // Update local board first
         setLocalBoard(newBoard);
         
-        // Send blueprint to peers
+        // Create and send the board blueprint
         const blueprint = createBoardBlueprint(newBoard);
-        onGameUpdate(blueprint);
+        onGameUpdate({
+            board: blueprint,  // Send the blueprint instead of the full board
+            config: config
+        });
 
-        // Check win/lose conditions after board is updated
         if (newBoard[y][x].isMine) {
             setTimeout(() => handleGameOver(), 0);
         } else if (checkWinCondition(newBoard)) {
@@ -228,8 +234,8 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
 
     // Update board when receiving updates from network
     useEffect(() => {
-        if (localBoard && networkBoard) {
-            const updatedBoard = applyBoardBlueprint(localBoard, networkBoard);
+        if (localBoard && networkBoard?.board) {  // Check for networkBoard.board
+            const updatedBoard = applyBoardBlueprint(localBoard, networkBoard.board);
             
             // Check if this update contains mine placements
             const hasMinePlacement = updatedBoard.some(row => 
@@ -276,6 +282,14 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
             }
         };
     }, [handleMouseMove, handleMouseLeave]);
+
+    const getCurrentTimerState = () => {
+        return {
+            enabled: config.timer.enabled,
+            minutes: Math.floor(timer.currentSeconds / 60),
+            seconds: timer.currentSeconds % 60
+        };
+    };
 
     return (
         <div className="minesweeper">

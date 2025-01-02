@@ -119,6 +119,17 @@ const PeerNetworkManager = () => {
 
     const isChatEnabled = connectedPeers.length > 0;
 
+    const getCurrentTimerState = () => {
+        if (gameState?.board) {
+            return {
+                enabled: gameState.config.timer.enabled,
+                minutes: Math.floor(gameState.currentSeconds / 60),
+                seconds: gameState.currentSeconds % 60
+            };
+        }
+        return null;
+    };
+
     return (
         <div className="peer-network-manager">
             <div className="network-info">
@@ -197,6 +208,7 @@ const PeerNetworkManager = () => {
                         onCursorMove={handleCursorMove}
                         peerCursors={peerCursors}
                         connectedUsers={connectedUsers}
+                        getCurrentTimerState={getCurrentTimerState}
                     />
                 ) : (
                     <GameConfig 
