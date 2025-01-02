@@ -1,3 +1,4 @@
+/* Main layout for the peer network manager component */
 .peer-network-manager {
     display: flex;
     justify-content: space-between;
@@ -8,6 +9,7 @@
     left: 0;
 }
 
+/* Sidebar containing network information and controls */
 .network-info {
     width: 300px;
     display: flex;
@@ -17,6 +19,7 @@
     height: 100%;
 }
 
+/* Container for displaying peer ID */
 .peer-id-container {
     padding: 15px;
     border-bottom: 1px solid #eee;
@@ -25,11 +28,13 @@
     gap: 8px;
 }
 
+/* Wrapper for peer ID text */
 .peer-id-wrapper {
     flex: 1;
     overflow: hidden;
 }
 
+/* Styling for the peer ID display */
 .peer-id {
     font-family: monospace;
     background-color: #f5f5f5;
@@ -40,6 +45,7 @@
     white-space: nowrap;
 }
 
+/* Copy button styling */
 .copy-button {
     padding: 8px;
     background: none;
@@ -55,31 +61,37 @@
     border-radius: 4px;
 }
 
+/* Copy button hover state */
 .copy-button:hover {
     color: #1976D2;
     background-color: rgba(33, 150, 243, 0.1);
 }
 
+/* Copy button copied state */
 .copy-button.copied {
     color: #4CAF50;
     background-color: rgba(76, 175, 80, 0.1);
 }
 
+/* Copy button icon */
 .copy-button i {
     font-size: 16px;
 }
 
+/* Container for connection controls */
 .connection-controls {
     padding: 15px;
     border-bottom: 1px solid #eee;
 }
 
+/* Form for connecting to peers */
 .connect-form {
     display: flex;
     gap: 8px;
     width: 100%;
 }
 
+/* Input field in connect form */
 .connect-form input {
     flex: 1;
     min-width: 0;
@@ -89,6 +101,7 @@
     font-size: 14px;
 }
 
+/* Shared styles for connect and disconnect buttons */
 .connect-form button,
 .disconnect-button {
     padding: 8px 16px;
@@ -100,35 +113,41 @@
     flex-shrink: 0;
 }
 
+/* Connect button specific styles */
 .connect-form button {
     background-color: #2196F3;
     color: white;
 }
 
+/* Disconnect button specific styles */
 .disconnect-button {
     width: 100%;
     background-color: #f44336;
     color: white;
 }
 
+/* Container for peers list */
 .peers-list {
     padding: 15px;
     flex: 1;
     overflow-y: auto;
 }
 
+/* Peers list heading */
 .peers-list h3 {
     margin: 0 0 15px 0;
     font-size: 16px;
     color: #666;
 }
 
+/* Peers list container */
 .peers-list ul {
     list-style: none;
     padding: 0;
     margin: 0;
 }
 
+/* Individual peer list item */
 .peers-list li {
     padding: 8px 12px;
     margin-bottom: 8px;
@@ -140,10 +159,12 @@
     gap: 8px;
 }
 
+/* Current user highlight in peers list */
 .peers-list li.current-user {
     background-color: #e3f2fd;
 }
 
+/* Chat sidebar container */
 .chat-container {
     width: 300px;
     height: 100%;
@@ -151,12 +172,14 @@
     background-color: white;
 }
 
+/* Main game area container */
 .game-container {
     flex: 1;
     position: relative;
     overflow: hidden;
 }
 
+/* Scrollable game content container */
 .game-scroll-container {
     position: absolute;
     top: 0;
@@ -171,10 +194,12 @@
     user-select: none;
 }
 
+/* Dragging state for game container */
 .game-scroll-container.dragging {
     cursor: grabbing;
 }
 
+/* Game content wrapper */
 .game-content {
     padding: 20px;
     min-width: 100%;
@@ -184,6 +209,7 @@
     justify-content: center;
 }
 
+/* Error message styling */
 .connection-error {
     color: #f44336;
     font-size: 14px;
@@ -192,6 +218,7 @@
     animation: fadeIn 0.3s ease-in;
 }
 
+/* Fade in animation */
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }

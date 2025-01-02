@@ -2,56 +2,69 @@ import Peer from 'peerjs';
 import { createBoardBlueprint } from '../utils/minesweeperLogic';
 
 /**
+ * Represents a chat or system message in the network
  * @typedef {Object} ChatMessage
  * @property {string} type - Message type (CHAT or SYSTEM)
  * @property {string} sender - Sender's peer ID
  * @property {string} content - Message content
- * @property {number} timestamp - Message timestamp
+ * @property {number} timestamp - Message timestamp in milliseconds
  */
 
 /**
- * PeerNetwork manages peer-to-peer connections and network topology
+ * Manages peer-to-peer connections and network topology for multiplayer functionality.
+ * Handles peer discovery, message broadcasting, game state synchronization and cursor tracking.
  * @class PeerNetwork
  */
 class PeerNetwork {
     /**
-     * Initialize PeerNetwork with optional configuration
-     * @param {Object} config - PeerJS configuration options
+     * Creates a new PeerNetwork instance
+     * @param {Object} config - PeerJS configuration options for customizing the peer connection
      */
     constructor(config = {}) {
+        // Core networking
         this.peer = null;
-        this.connections = new Map(); // Stores active connections (peerId -> DataConnection)
         this.peerId = null;
         this.config = config;
-        this.userInfo = null; // Store user info
-        this.connectedUsers = new Map(); // Store user info: peerId -> userInfo
-        this.pendingUserInfoRequests = new Set(); // Track pending requests
+        this.destroyed = false;
+        this.connections = new Map(); // Active peer connections mapped by peerId
+        this.outgoingConnections = new Set(); // Tracks connections initiated by this peer
+        
+        // User management
+        this.userInfo = null;
+        this.connectedUsers = new Map(); // User info mapped by peerId
+        this.pendingUserInfoRequests = new Set();
+        this.hasAnnouncedUser = new Set();
+        
+        // Messaging
+        this.messages = [];
+        
+        // Cursor tracking
+        this.cursorTimestamps = new Map();
+        this.cursorCleanupInterval = null;
+        this.CURSOR_TIMEOUT = 7000;
+        
+        // Game state
+        this.currentGameConfig = null;
+        this.currentGameState = null;
+        this.gameConfig = null;
+
+        // Callback handlers
         this.onPeerConnectedCallback = null;
         this.onPeerDisconnectedCallback = null;
         this.onNetworkReadyCallback = null;
         this.onMessageReceivedCallback = null;
         this.onUserInfoUpdatedCallback = null;
-        this.hasAnnouncedUser = new Set();
-        this.destroyed = false; // Track if peer was destroyed
         this.onGameConfigUpdatedCallback = null;
         this.onGameBoardUpdatedCallback = null;
         this.onGameStartedCallback = null;
         this.onGameOverCallback = null;
         this.onCursorUpdateCallback = null;
-        this.outgoingConnections = new Set(); // Track connections we initiated
-        this.messages = [];
-        this.cursorTimestamps = new Map(); // Track last cursor update time
-        this.cursorCleanupInterval = null;
-        this.CURSOR_TIMEOUT = 7000; // 7 seconds
-        this.currentGameConfig = null;
-        this.currentGameState = null;
-        this.gameConfig = null; // Legacy fallback if needed
     }
 
     /**
-     * Initialize the peer connection with user information
-     * @param {Object} userInfo - User's name and color information
-     * @returns {Promise<string>} The peer ID
+     * Initializes the peer connection and sets up the network
+     * @param {Object} userInfo - Information about the local user (name, color, etc)
+     * @returns {Promise<string>} Resolves with the assigned peer ID
      */
     async initialize(userInfo) {
         this.userInfo = userInfo;
@@ -85,7 +98,7 @@ class PeerNetwork {
     }
 
     /**
-     * Set up event listeners for peer connections
+     * Sets up event listeners for handling incoming peer connections
      * @private
      */
     setupEventListeners() {
@@ -95,9 +108,9 @@ class PeerNetwork {
     }
 
     /**
-     * Handle incoming peer connections
+     * Handles new incoming peer connections by setting up data handlers and sharing network state
      * @private
-     * @param {DataConnection} conn - The peer connection
+     * @param {DataConnection} conn - The peer connection object
      */
     handleIncomingConnection(conn) {
         conn.on('open', () => {
@@ -217,9 +230,10 @@ class PeerNetwork {
     }
 
     /**
-     * Helper to decide if we should connect to a given peer
-     * @param {string} peerId - The peer's ID
-     * @returns {boolean} Whether a connection attempt is needed
+     * Determines if a new connection should be established with a peer
+     * @private
+     * @param {string} peerId - The potential peer's ID
+     * @returns {boolean} True if connection should be attempted, false otherwise
      */
     shouldConnectToPeer(peerId) {
         // Avoid connecting to self
@@ -232,9 +246,9 @@ class PeerNetwork {
     }
 
     /**
-     * Handle received peer list and establish missing connections
+     * Processes received peer list and establishes connections with new peers
      * @private
-     * @param {string[]} peers - List of peer IDs
+     * @param {string[]} peers - Array of peer IDs to potentially connect with
      */
     async handlePeerListMessage(peers) {
         for (const peerId of peers) {
@@ -245,10 +259,10 @@ class PeerNetwork {
     }
 
     /**
-     * Handle received user info
+     * Updates local user info storage and triggers relevant callbacks
      * @private
-     * @param {string} peerId - The peer ID
-     * @param {Object} userInfo - The user information
+     * @param {string} peerId - The peer's ID
+     * @param {Object} userInfo - The user's information (name, color, etc)
      */
     handleUserInfo(peerId, userInfo) {
         this.connectedUsers.set(peerId, userInfo);
@@ -266,9 +280,9 @@ class PeerNetwork {
     }
 
     /**
-     * Handle user info request
+     * Responds to user info requests by sending local user information
      * @private
-     * @param {string} requestingPeerId - The requesting peer's ID
+     * @param {string} requestingPeerId - ID of the peer requesting user info
      */
     handleUserInfoRequest(requestingPeerId) {
         const conn = this.connections.get(requestingPeerId);
@@ -281,7 +295,7 @@ class PeerNetwork {
     }
 
     /**
-     * Handle received known users list
+     * Updates local user info storage with information about multiple users
      * @private
      * @param {Array} users - Array of [peerId, userInfo] pairs
      */
@@ -297,9 +311,9 @@ class PeerNetwork {
     }
 
     /**
-     * Request user info from a peer
+     * Requests user information from a specific peer
      * @private
-     * @param {string} peerId - The peer to request from
+     * @param {string} peerId - ID of the peer to request info from
      */
     requestUserInfo(peerId) {
         if (!this.connectedUsers.has(peerId) && !this.pendingUserInfoRequests.has(peerId)) {
@@ -314,26 +328,26 @@ class PeerNetwork {
     }
 
     /**
-     * Set callback for user info updates
-     * @param {Function} callback - Called with peerId and userInfo when user info is updated
+     * Sets callback for user info updates
+     * @param {Function} callback - Function called when user info changes
      */
     onUserInfoUpdated(callback) {
         this.onUserInfoUpdatedCallback = callback;
     }
 
     /**
-     * Get user info for a peer
-     * @param {string} peerId - The peer ID
-     * @returns {Object|null} The user info or null if not found
+     * Retrieves user information for a specific peer
+     * @param {string} peerId - The peer's ID
+     * @returns {Object|null} User info object or null if not found
      */
     getUserInfo(peerId) {
         return this.connectedUsers.get(peerId) || null;
     }
 
     /**
-     * Connect to a peer using their ID
-     * @param {string} targetPeerId - The ID of the peer to connect to
-     * @returns {Promise<DataConnection>}
+     * Establishes a connection with a new peer
+     * @param {string} targetPeerId - ID of the peer to connect to
+     * @returns {Promise<DataConnection>} Promise resolving to the connection object
      */
     async connectToPeer(targetPeerId) {
         try {
@@ -348,9 +362,9 @@ class PeerNetwork {
     }
 
     /**
-     * Share the list of connected peers with a new peer
+     * Shares list of connected peers with a newly connected peer
      * @private
-     * @param {DataConnection} conn - The peer connection
+     * @param {DataConnection} conn - Connection to share peer list with
      */
     sharePeerList(conn) {
         const peerList = Array.from(this.connections.keys());
@@ -361,39 +375,39 @@ class PeerNetwork {
     }
 
     /**
-     * Set callback for when a peer connects
-     * @param {Function} callback - Called with peer ID when a new peer connects
+     * Sets callback for peer connection events
+     * @param {Function} callback - Function called when a new peer connects
      */
     onPeerConnected(callback) {
         this.onPeerConnectedCallback = callback;
     }
 
     /**
-     * Set callback for when a peer disconnects
-     * @param {Function} callback - Called with peer ID when a peer disconnects
+     * Sets callback for peer disconnection events
+     * @param {Function} callback - Function called when a peer disconnects
      */
     onPeerDisconnected(callback) {
         this.onPeerDisconnectedCallback = callback;
     }
 
     /**
-     * Set callback for when the network is ready
-     * @param {Function} callback - Called with peer ID when network is initialized
+     * Sets callback for network initialization
+     * @param {Function} callback - Function called when network is ready
      */
     onNetworkReady(callback) {
         this.onNetworkReadyCallback = callback;
     }
 
     /**
-     * Get the list of connected peers
-     * @returns {string[]} Array of connected peer IDs
+     * Gets array of currently connected peer IDs
+     * @returns {string[]} Array of peer IDs
      */
     getConnectedPeers() {
         return Array.from(this.connections.keys());
     }
 
     /**
-     * Disconnect from the network
+     * Disconnects from all peers and cleans up network resources
      */
     disconnect() {
         this.connections.forEach((conn) => conn.close());
@@ -408,8 +422,8 @@ class PeerNetwork {
     }
 
     /**
-     * Send a chat message to all connected peers
-     * @param {string} content - Message content
+     * Broadcasts a chat message to all connected peers
+     * @param {string} content - The message content
      */
     broadcastMessage(content) {
         const message = {
@@ -430,17 +444,17 @@ class PeerNetwork {
     }
 
     /**
-     * Set callback for receiving messages
-     * @param {Function} callback - Called with message object when a message is received
+     * Sets callback for message reception
+     * @param {Function} callback - Function called when messages are received
      */
     onMessageReceived(callback) {
         this.onMessageReceivedCallback = callback;
     }
 
     /**
-     * Send system notification to all peers
+     * Broadcasts a system message to all peers
      * @private
-     * @param {string} content - System message content
+     * @param {string} content - The system message content
      */
     broadcastSystemMessage(content) {
         const message = {
@@ -460,20 +474,30 @@ class PeerNetwork {
         }
     }
 
+    /**
+     * Gets display name for a peer
+     * @param {string} peerId - The peer's ID
+     * @returns {string} Display name or "Unknown User" if not found
+     */
     getUserDisplayName(peerId) {
         const userInfo = this.connectedUsers.get(peerId);
         return userInfo ? userInfo.name : 'Unknown User';
     }
 
+    /**
+     * Gets color associated with a peer
+     * @param {string} peerId - The peer's ID
+     * @returns {string} Color value or default color if not found
+     */
     getUserColor(peerId) {
         const userInfo = this.connectedUsers.get(peerId);
         return userInfo ? userInfo.color.value : '#999';
     }
 
     /**
-     * Handle received game configuration
+     * Updates game configuration based on received data
      * @private
-     * @param {Object} config - The game configuration
+     * @param {Object} config - The new game configuration
      */
     handleGameConfig(config) {
         if (this.currentGameState?.board) {
@@ -491,7 +515,7 @@ class PeerNetwork {
     }
 
     /**
-     * Broadcast game configuration to all peers
+     * Broadcasts game configuration to all connected peers
      * @param {Object} config - The game configuration to broadcast
      */
     broadcastGameConfig(config) {
@@ -507,17 +531,17 @@ class PeerNetwork {
     }
 
     /**
-     * Set callback for game configuration updates
-     * @param {Function} callback - Called with new config when received
+     * Sets callback for game configuration updates
+     * @param {Function} callback - Function called when game config changes
      */
     onGameConfigUpdated(callback) {
         this.onGameConfigUpdatedCallback = callback;
     }
 
     /**
-     * Start a new game and broadcast to peers
-     * @param {Object} config - The starting config
-     * @param {Object} board - The starting board
+     * Starts a new game and broadcasts initial state to all peers
+     * @param {Object} config - Initial game configuration
+     * @param {Object} board - Initial board state
      */
     startGame(config, board) {
         // Clear any existing game state first
@@ -547,8 +571,8 @@ class PeerNetwork {
     }
 
     /**
-     * Update game state and broadcast to peers
-     * @param {Object} state - The new game state: { board, lastUpdate, etc. }
+     * Updates game state and broadcasts changes to all peers
+     * @param {Object} state - New game state with updated board
      */
     updateGameState(state) {
         if (!this.currentGameState) return;
@@ -573,8 +597,8 @@ class PeerNetwork {
     }
 
     /**
-     * Broadcast game over to peers
-     * @param {string|null} reason - The reason for game over
+     * Broadcasts game over state to all peers
+     * @param {string|null} reason - Reason for game ending
      */
     broadcastGameOver(reason) {
         this.currentGameState = null;
@@ -595,7 +619,12 @@ class PeerNetwork {
         }
     }
 
-    // Handler methods
+    /**
+     * Handles game start messages from peers
+     * @private
+     * @param {Object} config - Game configuration
+     * @param {Object} board - Initial board state
+     */
     handleGameStart(config, board) {
         this.currentGameState = { config, board };
         if (this.onGameStartedCallback) {
@@ -603,6 +632,11 @@ class PeerNetwork {
         }
     }
 
+    /**
+     * Handles game state updates from peers
+     * @private
+     * @param {Object} state - Updated game state
+     */
     handleGameState(state) {
         this.currentGameState = state;
         if (this.onGameBoardUpdatedCallback) {
@@ -610,6 +644,11 @@ class PeerNetwork {
         }
     }
 
+    /**
+     * Handles game over messages from peers
+     * @private
+     * @param {string} reason - Reason for game ending
+     */
     handleGameOver(reason) {
         this.currentGameState = null;
         this.currentGameConfig = null;
@@ -620,22 +659,33 @@ class PeerNetwork {
         }
     }
 
-    // Callback setters
+    /**
+     * Sets callback for game start events
+     * @param {Function} callback - Function called when game starts
+     */
     onGameStarted(callback) {
         this.onGameStartedCallback = callback;
     }
 
+    /**
+     * Sets callback for game board updates
+     * @param {Function} callback - Function called when board changes
+     */
     onGameBoardUpdated(callback) {
         this.onGameBoardUpdatedCallback = callback;
     }
 
+    /**
+     * Sets callback for game over events
+     * @param {Function} callback - Function called when game ends
+     */
     onGameOver(callback) {
         this.onGameOverCallback = callback;
     }
 
     /**
-     * Broadcast cursor position to all peers
-     * @param {Object} position - The cursor position { x, y, isInCanvas }
+     * Broadcasts cursor position to all connected peers
+     * @param {Object} position - Cursor position {x, y, isInCanvas}
      */
     broadcastCursorPosition(position) {
         if (!position) return;
@@ -656,6 +706,12 @@ class PeerNetwork {
         }
     }
 
+    /**
+     * Handles cursor updates from peers
+     * @private
+     * @param {string} peerId - ID of peer whose cursor moved
+     * @param {Object} position - New cursor position
+     */
     handleCursorUpdate(peerId, position) {
         if (position) {
             this.cursorTimestamps.set(peerId, Date.now());
@@ -671,10 +727,19 @@ class PeerNetwork {
         }
     }
 
+    /**
+     * Sets callback for cursor update events
+     * @param {Function} callback - Function called when cursors move
+     */
     onCursorUpdate(callback) {
         this.onCursorUpdateCallback = callback;
     }
 
+    /**
+     * Handles peer disconnection cleanup
+     * @private
+     * @param {string} peerId - ID of disconnected peer
+     */
     handlePeerDisconnected(peerId) {
         if (this.onCursorUpdateCallback) {
             // Send null to remove cursor
@@ -686,6 +751,10 @@ class PeerNetwork {
         }
     }
 
+    /**
+     * Adds a system message to the message list
+     * @param {string} content - System message content
+     */
     addSystemMessage(content) {
         const message = {
             type: 'SYSTEM',
@@ -699,9 +768,10 @@ class PeerNetwork {
     }
 
     /**
-     * Attempt to fetch the current timer from some local state if available
-     * @param {Object} config - The game config
-     * @returns {Object} Timer with minutes, seconds, enabled
+     * Gets current timer state from game state
+     * @private
+     * @param {Object} config - Game configuration
+     * @returns {Object} Current timer state
      */
     getCurrentTimerState(config) {
         if (this.currentGameState?.getCurrentTimerState) {
@@ -711,7 +781,7 @@ class PeerNetwork {
     }
 
     /**
-     * Start cursor cleanup interval
+     * Starts interval to clean up stale cursor positions
      * @private
      */
     startCursorCleanup() {
@@ -738,7 +808,7 @@ class PeerNetwork {
     }
 
     /**
-     * Stop cursor cleanup interval
+     * Stops the cursor cleanup interval
      * @private
      */
     stopCursorCleanup() {
@@ -749,4 +819,4 @@ class PeerNetwork {
     }
 }
 
-export default PeerNetwork; 
+export default PeerNetwork;

@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import './GameConfig.css';
 
+/**
+ * Predefined game configurations for different difficulty levels
+ * Each preset contains board dimensions, number of bombs, and timer settings
+ */
 const PRESETS = {
     beginner: {
         name: 'Beginner',
@@ -25,12 +29,24 @@ const PRESETS = {
     }
 };
 
+// Game board constraints
 const MIN_SIZE = 5;
 const MAX_SIZE = 50;
 const MIN_BOMBS = 1;
 const MAX_BOMBS_PERCENTAGE = 0.35; // Maximum 35% of cells can be bombs
 
+/**
+ * GameConfig Component - Provides configuration interface for Minesweeper game settings
+ * 
+ * @component
+ * @param {Object} props - Component properties
+ * @param {Function} props.onStartGame - Callback triggered when game starts with final configuration
+ * @param {Function} props.onConfigChange - Callback for notifying configuration changes to peers
+ * @param {Object} props.initialConfig - Initial configuration received from peers
+ * @returns {JSX.Element} Game configuration form interface
+ */
 const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
+    // State for tracking selected preset and configuration values
     const [preset, setPreset] = useState('beginner');
     const [config, setConfig] = useState({
         selectedPreset: 'beginner',
@@ -52,12 +68,13 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
         seconds: PRESETS.beginner.timer.seconds.toString()
     });
 
-    // Update local config when receiving new config from peers
+    /**
+     * Synchronizes local configuration with peer configuration
+     */
     useEffect(() => {
         if (initialConfig) {
             setConfig(initialConfig);
             setPreset(initialConfig.selectedPreset);
-            // Update input values
             setInputValues({
                 width: initialConfig.width.toString(),
                 height: initialConfig.height.toString(),
@@ -68,6 +85,13 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
         }
     }, [initialConfig]);
 
+    /**
+     * Validates game configuration parameters
+     * Checks board dimensions, bomb count, and timer settings
+     * 
+     * @param {Object} newConfig - Configuration to validate
+     * @returns {Object} Validation errors for each invalid field
+     */
     const validateConfig = (newConfig) => {
         const errors = {};
         const width = parseInt(newConfig.width || MIN_SIZE.toString());
@@ -121,10 +145,19 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
         return errors;
     };
 
+    /**
+     * Updates validation errors when configuration changes
+     */
     useEffect(() => {
         setErrors(validateConfig(config));
     }, [config]);
 
+    /**
+     * Handles preset selection changes
+     * Updates configuration and input values to match selected preset
+     * 
+     * @param {string} presetKey - Key of selected preset
+     */
     const handlePresetChange = (presetKey) => {
         const newPreset = presetKey === 'custom' ? config : PRESETS[presetKey];
         const newConfig = {
@@ -142,16 +175,21 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
             seconds: newPreset.timer.seconds.toString()
         });
         
-        onConfigChange(newConfig); // Notify peers of the preset change
+        onConfigChange(newConfig);
     };
 
+    /**
+     * Handles individual configuration field changes
+     * Switches to custom preset mode when any value is modified
+     * 
+     * @param {string} field - Name of configuration field to update
+     * @param {string|boolean} value - New value for the field
+     */
     const handleConfigChange = (field, value) => {
-        // Switch to custom preset when any value is modified
         if (preset !== 'custom') {
             setPreset('custom');
         }
 
-        // Only update the specific field that changed
         let newConfig;
         if (field.includes('.')) {
             const [parent, child] = field.split('.');
@@ -164,7 +202,6 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
                 }
             };
             
-            // Only update this specific input value
             setInputValues(prev => ({
                 ...prev,
                 [child]: value
@@ -176,7 +213,6 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
                 [field]: value
             };
             
-            // Only update this specific input value
             setInputValues(prev => ({
                 ...prev,
                 [field]: value
@@ -185,13 +221,16 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
 
         const newErrors = validateConfig(newConfig);
         setErrors(newErrors);
-        
-        // Propagate the change even if there are errors
         setConfig(newConfig);
         onConfigChange?.(newConfig);
     };
 
-    // Add helper to check if config has all required values
+    /**
+     * Checks if configuration has all required values set
+     * 
+     * @param {Object} config - Configuration to check
+     * @returns {boolean} Whether configuration is complete
+     */
     const isConfigComplete = (config) => {
         const hasValidDimensions = config.width && config.height && 
             parseInt(config.width) >= MIN_SIZE && 
@@ -206,10 +245,15 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
         return hasValidDimensions && hasValidBombs && hasValidTimer;
     };
 
+    /**
+     * Handles form submission
+     * Applies default values for any missing fields before starting game
+     * 
+     * @param {Event} e - Form submission event
+     */
     const handleSubmit = (e) => {
         e.preventDefault();
         
-        // Use default values only when submitting
         const finalConfig = {
             ...config,
             width: parseInt(config.width) || MIN_SIZE,
@@ -225,6 +269,7 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
         onStartGame(finalConfig);
     };
 
+    // Calculate maximum allowed bombs based on current board dimensions
     const width = parseInt(config.width) || MIN_SIZE;
     const height = parseInt(config.height) || MIN_SIZE;
     const maxBombs = Math.min(
@@ -369,4 +414,4 @@ const GameConfig = ({ onStartGame, onConfigChange, initialConfig }) => {
     );
 };
 
-export default GameConfig; 
+export default GameConfig;

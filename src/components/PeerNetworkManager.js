@@ -9,7 +9,17 @@ import { createEmptyBoard } from '../utils/minesweeperLogic';
 import { useWakeLock } from '../hooks/useWakeLock';
 
 /**
- * Component for managing peer network connections and chat
+ * PeerNetworkManager Component
+ * 
+ * Manages the peer-to-peer networking functionality for multiplayer Minesweeper.
+ * Handles user connections, game state synchronization, chat, and cursor tracking.
+ * 
+ * Key responsibilities:
+ * - Peer connection management and user identification
+ * - Game state synchronization across connected peers
+ * - Real-time chat functionality
+ * - Cursor position broadcasting
+ * - Game configuration and lifecycle management
  */
 const PeerNetworkManager = () => {
     useWakeLock();
@@ -41,21 +51,18 @@ const PeerNetworkManager = () => {
     const [connectionError, setConnectionError] = useState('');
     const lastCursorPosition = useRef(null);
 
+    /**
+     * Cursor position broadcasting interval
+     * Periodically resends cursor position to maintain consistency across peers
+     */
     useEffect(() => {
-        // Remove this effect since we want to allow solo play
-        // if (gameState && connectedPeers.length === 0) {
-        //     endGame('All players disconnected');
-        // }
-    }, [connectedPeers.length, gameState, endGame]);
-
-    useEffect(() => {
-        if (!gameState) return; // Only track cursors during game
+        if (!gameState) return;
 
         const cursorInterval = setInterval(() => {
             if (lastCursorPosition.current) {
                 broadcastCursorPosition(lastCursorPosition.current);
             }
-        }, 2000); // Resend every 2 seconds
+        }, 2000);
 
         return () => {
             clearInterval(cursorInterval);
@@ -67,6 +74,10 @@ const PeerNetworkManager = () => {
         return <UserSetup onComplete={initializeWithUser} />;
     }
 
+    /**
+     * Initiates peer connection with provided peer ID
+     * Handles connection errors and provides feedback
+     */
     const handleConnect = async (e) => {
         e.preventDefault();
         if (targetPeerId.trim()) {
@@ -81,35 +92,56 @@ const PeerNetworkManager = () => {
         }
     };
 
+    /**
+     * Cleanly disconnects from network and resets game state
+     */
     const handleDisconnect = () => {
-        // Clear game state immediately without any timers
         endGame(null, false);
         updateGameConfig(null);
         disconnectFromNetwork();
     };
 
+    /**
+     * Copies peer ID to clipboard with visual feedback
+     */
     const handleCopyPeerId = () => {
         navigator.clipboard.writeText(peerId);
         setCopyFeedback(true);
         setTimeout(() => setCopyFeedback(false), 2000);
     };
 
+    /**
+     * Retrieves user name from connected users map
+     * @param {string} peerId - Peer ID to look up
+     * @returns {string} User name or fallback with peer ID
+     */
     const getUserName = (peerId) => {
         const user = connectedUsers.get(peerId);
         return user ? user.name : `Unknown (${peerId})`;
     };
 
+    /**
+     * Initializes new game with provided configuration
+     * @param {Object} config - Game configuration parameters
+     */
     const handleStartGame = (config) => {
-        // Clear any existing game state immediately before starting new game
         endGame(null, false);
         const initialBoard = createEmptyBoard(config.width, config.height);
         startGame(config, initialBoard);
     };
 
+    /**
+     * Updates game configuration across network
+     * @param {Object} newConfig - New game configuration
+     */
     const handleConfigChange = (newConfig) => {
         updateGameConfig(newConfig);
     };
 
+    /**
+     * Synchronizes game board state across network
+     * @param {Array} newBoard - Updated game board state
+     */
     const handleGameUpdate = (newBoard) => {
         if (!gameState) return;
         
@@ -120,28 +152,42 @@ const PeerNetworkManager = () => {
         });
     };
 
+    /**
+     * Handles game end conditions and resets state
+     */
     const handleGameOver = () => {
-        // Clear all game state immediately
         endGame();
-        updateGameConfig(null);  // Clear game config too
+        updateGameConfig(null);
     };
 
+    /**
+     * Broadcasts cursor position to connected peers
+     * @param {Object} position - Cursor position data
+     */
     const handleCursorMove = (position) => {
         if (!position) return;
         
-        // Store the last position to resend
         lastCursorPosition.current = position;
         broadcastCursorPosition(position);
     };
 
+    /**
+     * Cleanly exits current game without network disconnection
+     */
     const handleLeaveGame = () => {
-        // Use the same logic as disconnect but without network disconnect
         endGame(null, false);
         updateGameConfig(null);
     };
 
+    /**
+     * Determines if chat functionality should be enabled
+     */
     const isChatEnabled = connectedPeers.length > 0;
 
+    /**
+     * Retrieves current game timer state
+     * @returns {Object|null} Timer state with minutes and seconds, or null if no game
+     */
     const getCurrentTimerState = () => {
         if (gameState?.board) {
             return {
@@ -256,4 +302,4 @@ const PeerNetworkManager = () => {
     );
 };
 
-export default PeerNetworkManager; 
+export default PeerNetworkManager;

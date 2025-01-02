@@ -2,15 +2,29 @@ import React, { useEffect } from 'react';
 import './MobileBlocker.css';
 
 /**
- * Component that displays a full-screen overlay blocking mobile device access
+ * MobileBlocker Component
  * 
- * Renders a message informing users that the game is desktop-only,
- * prevents scrolling on mobile devices, and provides a link to the repository.
+ * A full-screen overlay component that prevents mobile users from accessing the application.
+ * This is necessary because the game requires precise mouse interactions and desktop-specific
+ * features that are not available or optimal on mobile devices.
+ * 
+ * Key features:
+ * - Displays a user-friendly message explaining desktop-only requirement
+ * - Prevents page scrolling on mobile devices via CSS class management
+ * - Provides a link to the source code repository for transparency
+ * - Uses Font Awesome icons for visual enhancement
  * 
  * @component
- * @returns {JSX.Element} Full-screen mobile blocking overlay
+ * @returns {JSX.Element} A full-screen overlay with mobile blocking message
  */
 const MobileBlocker = () => {
+  /**
+   * Manages the mobile blocking state by adding/removing a CSS class on the document body
+   * The class prevents scrolling while the blocker is active
+   * 
+   * The cleanup function ensures the class is removed when component unmounts
+   * to prevent any lingering scroll-blocking effects
+   */
   useEffect(() => {
     document.body.classList.add('mobile-blocked');
     
@@ -39,4 +53,4 @@ const MobileBlocker = () => {
   );
 };
 
-export default MobileBlocker; 
+export default MobileBlocker;

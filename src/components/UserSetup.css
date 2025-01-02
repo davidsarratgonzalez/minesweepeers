@@ -1,3 +1,4 @@
+/* Main container for user setup form */
 .user-setup {
     max-width: 500px;
     width: 90%;
@@ -12,6 +13,7 @@
     transform: translate(-50%, -50%);
 }
 
+/* Form title styling */
 div.user-setup > h1 {
     display: block;
     text-align: center;
@@ -22,10 +24,12 @@ div.user-setup > h1 {
     line-height: 1.2;
 }
 
+/* Form group container */
 .form-group {
     margin-bottom: 25px;
 }
 
+/* Form label styling */
 .form-group label {
     display: block;
     margin-bottom: 8px;
@@ -33,6 +37,7 @@ div.user-setup > h1 {
     font-size: 14px;
 }
 
+/* Form input field styling */
 .form-group input {
     width: 100%;
     padding: 10px 12px;
@@ -44,10 +49,12 @@ div.user-setup > h1 {
     transition: border-color 0.2s;
 }
 
+/* Input focus state */
 .form-group input:focus {
     border-color: #2196F3;
 }
 
+/* Color options grid layout */
 .color-options {
     display: grid;
     grid-template-columns: repeat(4, 40px);
@@ -60,6 +67,7 @@ div.user-setup > h1 {
     margin-right: auto;
 }
 
+/* Individual color option button */
 .color-option {
     width: 40px;
     height: 40px;
@@ -73,15 +81,18 @@ div.user-setup > h1 {
     outline: none;
 }
 
+/* Color option hover state */
 .color-option:hover {
     transform: scale(1.1);
 }
 
+/* Selected color option state */
 .color-option.selected {
     border-color: #333;
     transform: scale(1.1);
 }
 
+/* Submit button styling */
 .submit-button {
     width: 100%;
     padding: 12px;
@@ -95,15 +106,18 @@ div.user-setup > h1 {
     transition: background-color 0.2s;
 }
 
+/* Disabled submit button state */
 .submit-button:disabled {
     background-color: #ddd;
     cursor: not-allowed;
 }
 
+/* Submit button hover state */
 .submit-button:hover:not(:disabled) {
     background-color: #1976D2;
 }
 
+/* Credits section styling */
 .credits {
     margin-top: 20px;
     text-align: center;
@@ -111,12 +125,14 @@ div.user-setup > h1 {
     color: #666;
 }
 
+/* Credits link styling */
 .credits a {
     color: inherit;
     text-decoration: none;
     transition: text-decoration 0.2s;
 }
 
+/* Credits link hover state */
 .credits a:hover {
     text-decoration: underline;
 } 

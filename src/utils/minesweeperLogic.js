@@ -1,7 +1,12 @@
 import { CELL_STATUS } from '../constants/gameTypes';
 
 /**
- * Creates an empty board without mines
+ * Creates an empty game board with the specified dimensions.
+ * Each cell is initialized with default properties: not a mine, hidden status, and 0 adjacent mines.
+ * 
+ * @param {number} width - The width of the board in cells
+ * @param {number} height - The height of the board in cells
+ * @returns {Array<Array<Object>>} 2D array representing the game board
  */
 export const createEmptyBoard = (width, height) => {
     return Array(height).fill().map(() => 
@@ -14,7 +19,14 @@ export const createEmptyBoard = (width, height) => {
 };
 
 /**
- * Places mines on the board after first click
+ * Places mines randomly on the board while ensuring the first clicked cell and its adjacent cells are safe.
+ * Also calculates the number of adjacent mines for each non-mine cell.
+ * 
+ * @param {Array<Array<Object>>} board - The current game board
+ * @param {number} mines - Number of mines to place
+ * @param {number} firstX - X coordinate of first click
+ * @param {number} firstY - Y coordinate of first click
+ * @returns {Array<Array<Object>>} New board with mines placed and adjacent mine counts calculated
  */
 export const placeMines = (board, mines, firstX, firstY) => {
     const width = board[0].length;
@@ -48,7 +60,12 @@ export const placeMines = (board, mines, firstX, firstY) => {
 };
 
 /**
- * Counts mines adjacent to a cell
+ * Calculates the number of mines in the 8 cells surrounding a given cell position.
+ * 
+ * @param {Array<Array<Object>>} board - The game board
+ * @param {number} x - X coordinate of the cell
+ * @param {number} y - Y coordinate of the cell
+ * @returns {number} Count of adjacent mines
  */
 const countAdjacentMines = (board, x, y) => {
     let count = 0;
@@ -65,14 +82,25 @@ const countAdjacentMines = (board, x, y) => {
 };
 
 /**
- * Checks if coordinates are within board bounds
+ * Validates if given coordinates are within the board boundaries.
+ * 
+ * @param {Array<Array<Object>>} board - The game board
+ * @param {number} x - X coordinate to check
+ * @param {number} y - Y coordinate to check
+ * @returns {boolean} True if coordinates are valid, false otherwise
  */
 const isValidCell = (board, x, y) => {
     return y >= 0 && y < board.length && x >= 0 && x < board[0].length;
 };
 
 /**
- * Reveals a cell and its adjacent cells if empty
+ * Reveals a cell and recursively reveals adjacent cells if the clicked cell has no adjacent mines.
+ * Implements the flood-fill algorithm for revealing empty cells.
+ * 
+ * @param {Array<Array<Object>>} board - The current game board
+ * @param {number} x - X coordinate of clicked cell
+ * @param {number} y - Y coordinate of clicked cell
+ * @returns {Array<Array<Object>>} New board with revealed cells
  */
 export const revealCell = (board, x, y) => {
     // Early return if the cell is invalid, revealed, or flagged
@@ -113,7 +141,12 @@ export const revealCell = (board, x, y) => {
 };
 
 /**
- * Toggles flag on a cell
+ * Toggles a flag on a cell. A flagged cell cannot be revealed until unflagged.
+ * 
+ * @param {Array<Array<Object>>} board - The current game board
+ * @param {number} x - X coordinate of cell to flag
+ * @param {number} y - Y coordinate of cell to flag
+ * @returns {Array<Array<Object>>} New board with updated flag state
  */
 export const toggleFlag = (board, x, y) => {
     if (!isValidCell(board, x, y) || board[y][x].status === CELL_STATUS.REVEALED) {
@@ -130,7 +163,11 @@ export const toggleFlag = (board, x, y) => {
 };
 
 /**
- * Reveals all mines on the board
+ * Reveals all mines on the board, typically called when game is over.
+ * Maintains the state of non-mine cells.
+ * 
+ * @param {Array<Array<Object>>} board - The current game board
+ * @returns {Array<Array<Object>>} New board with all mines revealed
  */
 export const revealAllMines = (board) => {
     return board.map(row => 
@@ -145,7 +182,11 @@ export const revealAllMines = (board) => {
 };
 
 /**
- * Checks if the game is won
+ * Checks if the game is won by verifying all non-mine cells are revealed
+ * and no mines are revealed.
+ * 
+ * @param {Array<Array<Object>>} board - The current game board
+ * @returns {boolean} True if game is won, false otherwise
  */
 export const checkWinCondition = (board) => {
     return board.every(row => 
@@ -157,7 +198,11 @@ export const checkWinCondition = (board) => {
 };
 
 /**
- * Counts total flags on the board
+ * Counts the total number of flags placed on the board.
+ * Used to track remaining mines for the player.
+ * 
+ * @param {Array<Array<Object>>} board - The current game board
+ * @returns {number} Total number of flags on the board
  */
 export const countFlags = (board) => {
     return board.reduce((count, row) => 
@@ -168,7 +213,11 @@ export const countFlags = (board) => {
 };
 
 /**
- * Cell blueprint for network synchronization
+ * Creates a minimal representation of a cell for network transmission.
+ * Includes only essential properties to minimize network traffic.
+ * 
+ * @param {Object} cell - The cell to create blueprint from
+ * @returns {Object} Minimal cell representation for network sync
  */
 export const createCellBlueprint = (cell) => ({
     status: cell.status,
@@ -177,7 +226,10 @@ export const createCellBlueprint = (cell) => ({
 });
 
 /**
- * Create board blueprint for network sync
+ * Creates a minimal representation of the entire board for network transmission.
+ * 
+ * @param {Array<Array<Object>>} board - The game board
+ * @returns {Array<Array<Object>>} Board blueprint for network sync
  */
 export const createBoardBlueprint = (board) => {
     return board.map(row => 
@@ -186,7 +238,12 @@ export const createBoardBlueprint = (board) => {
 };
 
 /**
- * Apply board blueprint from network
+ * Applies a received board blueprint to update the local game state.
+ * Preserves existing cell properties not included in the blueprint.
+ * 
+ * @param {Array<Array<Object>>} board - The current game board
+ * @param {Array<Array<Object>>} blueprint - The received board blueprint
+ * @returns {Array<Array<Object>>} Updated game board
  */
 export const applyBoardBlueprint = (board, blueprint) => {
     return board.map((row, y) => 
@@ -195,7 +252,6 @@ export const applyBoardBlueprint = (board, blueprint) => {
             return {
                 ...cell,
                 status: blueprintCell.status,
-                // Only update mine info if it's set in the blueprint
                 ...(blueprintCell.isMine !== undefined && {
                     isMine: blueprintCell.isMine,
                     adjacentMines: blueprintCell.adjacentMines
@@ -205,6 +261,13 @@ export const applyBoardBlueprint = (board, blueprint) => {
     );
 };
 
+/**
+ * Creates a timer object based on game configuration.
+ * Supports both countdown and count-up timer modes.
+ * 
+ * @param {Object} config - Game configuration containing timer settings
+ * @returns {Object} Timer object with initial state
+ */
 export const createTimer = (config) => {
     const totalSeconds = config.timer.enabled ? 
         (config.timer.minutes * 60 + config.timer.seconds) : 
@@ -218,6 +281,13 @@ export const createTimer = (config) => {
     };
 };
 
+/**
+ * Updates timer state based on elapsed time.
+ * Handles both countdown and count-up modes.
+ * 
+ * @param {Object} timer - Current timer state
+ * @returns {Object} Updated timer state
+ */
 export const updateTimer = (timer) => {
     const elapsedSeconds = Math.floor((Date.now() - timer.startTime) / 1000);
     
@@ -234,6 +304,12 @@ export const updateTimer = (timer) => {
     };
 };
 
+/**
+ * Formats time in seconds to MM:SS string format.
+ * 
+ * @param {number} seconds - Time in seconds to format
+ * @returns {string} Formatted time string (MM:SS)
+ */
 export const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;

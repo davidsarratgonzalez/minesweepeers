@@ -1,3 +1,4 @@
+/* Main container for the Minesweeper game */
 .minesweeper {
     display: flex;
     flex-direction: column;
@@ -5,18 +6,21 @@
     height: 100%;
 }
 
+/* Scrollable container for the game board */
 .game-scroll-container {
     flex: 1;
     overflow: auto;
     position: relative;
 }
 
+/* Container for game content with padding */
 .game-content {
     padding: 20px;
     min-width: fit-content;
     min-height: fit-content;
 }
 
+/* Overlay shown when game is over */
 .game-over-overlay {
     position: absolute;
     top: 0;
@@ -32,22 +36,26 @@
     animation: fadeIn 0.3s ease-in;
 }
 
+/* Game over heading style */
 .game-over-overlay h2 {
     font-size: 32px;
     margin-bottom: 16px;
 }
 
+/* Countdown timer style */
 .countdown {
     font-size: 18px;
     color: #ccc;
 }
 
+/* Fade in animation keyframes */
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
 }
 
+/* Container for the game board */
 .board-container {
     position: relative;
-    display: inline-block; /* To wrap content tightly */
+    display: inline-block;
 } 

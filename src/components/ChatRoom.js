@@ -4,7 +4,17 @@ import './ChatRoom.css';
 import NotificationTracker from '../services/NotificationTracker';
 
 /**
- * Component for the chat room interface
+ * ChatRoom Component - Provides a real-time chat interface with message history and user notifications
+ * 
+ * @component
+ * @param {Object} props - Component properties
+ * @param {Array<Object>} props.messages - Array of message objects to display
+ * @param {Function} props.sendMessage - Callback to send a new message
+ * @param {Map} props.connectedUsers - Map of currently connected users and their information
+ * @param {Object} props.currentUser - Current user's information
+ * @param {Function} props.addSystemMessage - Callback to add system notifications
+ * @param {boolean} props.isEnabled - Whether the chat functionality is enabled
+ * @returns {JSX.Element} Chat room interface with message history and input form
  */
 const ChatRoom = ({ 
     messages, 
@@ -18,16 +28,26 @@ const ChatRoom = ({
     const messagesEndRef = useRef(null);
     const notificationTracker = useRef(new NotificationTracker());
 
+    /**
+     * Scrolls the message container to the latest message
+     * Uses smooth scrolling behavior for better user experience
+     */
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
+    /**
+     * Automatically scrolls to the latest message whenever messages are updated
+     */
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
 
+    /**
+     * Tracks and notifies when new users join the chat
+     * Prevents duplicate notifications for the same user
+     */
     useEffect(() => {
-        // Only track new connections for join notifications
         const tracker = notificationTracker.current;
 
         connectedUsers.forEach((user, peerId) => {
@@ -37,7 +57,10 @@ const ChatRoom = ({
         });
     }, [connectedUsers, currentUser.peerId, addSystemMessage]);
 
-    // Reset notification tracker when chat is disabled (disconnected)
+    /**
+     * Resets the notification tracker and message input when chat is disabled
+     * Ensures clean state when reconnecting
+     */
     useEffect(() => {
         if (!isEnabled) {
             notificationTracker.current.reset();
@@ -45,6 +68,12 @@ const ChatRoom = ({
         }
     }, [isEnabled]);
 
+    /**
+     * Handles message submission
+     * Trims whitespace and prevents empty messages from being sent
+     * 
+     * @param {React.FormEvent} e - Form submission event
+     */
     const handleSubmit = (e) => {
         e.preventDefault();
         if (newMessage.trim()) {
@@ -82,4 +111,4 @@ const ChatRoom = ({
     );
 };
 
-export default ChatRoom; 
+export default ChatRoom;

@@ -1,15 +1,36 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Hook to request a wake lock (screen) so the device doesn't go to sleep
- * or throttle the browser tab as aggressively when in the background
+ * Custom React hook that manages the Wake Lock API to prevent browser throttling and screen sleep.
+ * 
+ * Critical for maintaining stable peer-to-peer connections, as browsers may throttle or suspend
+ * background tabs/processes, which can disrupt WebRTC connections and data synchronization.
+ * 
+ * @returns {void}
+ * 
+ * @example
+ * function NetworkComponent() {
+ *   useWakeLock(); // Maintains active connection state
+ *   return <div>Connected Peers: ...</div>;
+ * }
  */
 export function useWakeLock() {
+    // Maintains reference to active wake lock between renders
     const wakeLockRef = useRef(null);
 
     useEffect(() => {
+        // Flag to track if the effect is still mounted
         let isActive = true;
 
+        /**
+         * Requests a wake lock from the browser's Wake Lock API.
+         * Essential for maintaining consistent peer network connectivity by preventing
+         * the browser from aggressively throttling background processes.
+         * 
+         * @async
+         * @function
+         * @returns {Promise<void>}
+         */
         async function requestWakeLock() {
             if ('wakeLock' in navigator) {
                 try {
@@ -23,7 +44,12 @@ export function useWakeLock() {
 
         requestWakeLock();
 
-        // Re-request wake lock when visibility changes (some browsers will release it)
+        /**
+         * Handles visibility changes in the document.
+         * Critical for peer connections as browsers may release wake lock and throttle
+         * background tabs, potentially disrupting WebRTC connections. Re-requests
+         * wake lock when tab becomes visible to maintain connection stability.
+         */
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible' && isActive) {
                 requestWakeLock();
@@ -32,6 +58,14 @@ export function useWakeLock() {
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
+        /**
+         * Cleanup function that:
+         * 1. Marks the effect as inactive
+         * 2. Removes visibility change listener
+         * 3. Releases any active wake lock
+         * 
+         * @returns {void}
+         */
         return () => {
             isActive = false;
             document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -40,4 +74,4 @@ export function useWakeLock() {
             }
         };
     }, []);
-} 
+}
