@@ -11,6 +11,14 @@ import { createBoardBlueprint } from '../utils/minesweeperLogic';
  */
 
 /**
+ * Represents a disconnect notification message
+ * @typedef {Object} DisconnectMessage
+ * @property {string} type - Always 'DISCONNECT'
+ * @property {string} peerId - ID of disconnecting peer
+ * @property {string} reason - Reason for disconnection (e.g., 'manual', 'error')
+ */
+
+/**
  * Manages peer-to-peer connections and network topology for multiplayer functionality.
  * Handles peer discovery, message broadcasting, game state synchronization and cursor tracking.
  * @class PeerNetwork
@@ -198,6 +206,9 @@ class PeerNetwork {
                     break;
                 case 'CURSOR_UPDATE':
                     this.handleCursorUpdate(conn.peer, data.position);
+                    break;
+                case 'DISCONNECT':
+                    this.handlePeerDisconnectMessage(data.peerId, data.reason);
                     break;
                 default:
                     console.warn('Unknown message type:', data.type);
@@ -407,18 +418,68 @@ class PeerNetwork {
     }
 
     /**
-     * Disconnects from all peers and cleans up network resources
+     * Disconnects from current peers while maintaining ability to reconnect
+     * Ensures clean disconnection and proper state cleanup
+     * @param {string} [reason='manual'] - Reason for disconnection
+     * @param {boolean} [destroyPeer=false] - Whether to completely destroy the peer connection
      */
-    disconnect() {
-        this.connections.forEach((conn) => conn.close());
-        this.connections.clear();
-        if (this.peer) {
-            this.destroyed = true;
-            this.peer.destroy();
-        }
-        this.outgoingConnections.clear();
-        this.stopCursorCleanup();
-        this.cursorTimestamps.clear();
+    disconnect(reason = 'manual', destroyPeer = false) {
+        if (!this.peer) return;
+
+        // First notify all peers that we're disconnecting
+        const disconnectMessage = {
+            type: 'DISCONNECT',
+            peerId: this.peerId,
+            reason
+        };
+
+        // Broadcast disconnect message to all peers
+        this.connections.forEach(conn => {
+            try {
+                conn.send(disconnectMessage);
+            } catch (error) {
+                console.warn('Failed to send disconnect message to peer:', error);
+            }
+        });
+
+        // Small delay to allow messages to be sent before closing connections
+        setTimeout(() => {
+            // Close all peer connections
+            this.connections.forEach(conn => {
+                try {
+                    conn.close();
+                } catch (error) {
+                    console.warn('Error closing connection:', error);
+                }
+            });
+
+            // Clear all connection tracking
+            this.connections.clear();
+            this.outgoingConnections.clear();
+            this.connectedUsers.clear();
+            this.pendingUserInfoRequests.clear();
+            this.hasAnnouncedUser.clear();
+            this.cursorTimestamps.clear();
+
+            // Stop cursor cleanup interval
+            if (this.cursorCleanupInterval) {
+                clearInterval(this.cursorCleanupInterval);
+                this.cursorCleanupInterval = null;
+            }
+
+            // Clear game state
+            this.currentGameState = null;
+            this.currentGameConfig = null;
+            this.gameConfig = null;
+
+            // Only destroy peer if explicitly requested
+            if (destroyPeer) {
+                this.peer.destroy();
+                this.peer = null;
+                this.destroyed = true;
+                this.peerId = null;
+            }
+        }, 100); // Small delay to ensure messages are sent
     }
 
     /**
@@ -477,11 +538,11 @@ class PeerNetwork {
     /**
      * Gets display name for a peer
      * @param {string} peerId - The peer's ID
-     * @returns {string} Display name or "Unknown User" if not found
+     * @returns {string} Display name or "Unknown player" if not found
      */
     getUserDisplayName(peerId) {
         const userInfo = this.connectedUsers.get(peerId);
-        return userInfo ? userInfo.name : 'Unknown User';
+        return userInfo ? userInfo.name : 'Unknown player';
     }
 
     /**
@@ -500,6 +561,12 @@ class PeerNetwork {
      * @param {Object} config - The new game configuration
      */
     handleGameConfig(config) {
+        // Guard for null or undefined config
+        if (!config) {
+            console.warn('handleGameConfig received null or undefined config. Ignoring.');
+            return;
+        }
+
         if (this.currentGameState?.board) {
             // If we're in a game, update the timer in the config
             config = {
@@ -774,6 +841,14 @@ class PeerNetwork {
      * @returns {Object} Current timer state
      */
     getCurrentTimerState(config) {
+        if (!config || !config.timer) {
+            // Provide a fallback timer object if null
+            return {
+                enabled: false,
+                minutes: 0,
+                seconds: 0
+            };
+        }
         if (this.currentGameState?.getCurrentTimerState) {
             return this.currentGameState.getCurrentTimerState();
         }
@@ -815,6 +890,44 @@ class PeerNetwork {
         if (this.cursorCleanupInterval) {
             clearInterval(this.cursorCleanupInterval);
             this.cursorCleanupInterval = null;
+        }
+    }
+
+    /**
+     * Handles disconnect messages from peers
+     * Ensures proper cleanup of peer state and UI updates
+     * @private
+     * @param {string} peerId - ID of disconnecting peer
+     * @param {string} reason - Reason for disconnection
+     */
+    handlePeerDisconnectMessage(peerId, reason) {
+        // Get user info before removing from map
+        const userInfo = this.connectedUsers.get(peerId);
+
+        // Clean up peer state
+        this.connections.delete(peerId);
+        this.outgoingConnections.delete(peerId);
+        this.connectedUsers.delete(peerId);
+        this.pendingUserInfoRequests.delete(peerId);
+        this.hasAnnouncedUser.delete(peerId);
+
+        // Handle cursor cleanup
+        this.handlePeerDisconnected(peerId);
+
+        // Notify about disconnection if we have user info
+        if (userInfo && this.onMessageReceivedCallback) {
+            const message = {
+                type: 'SYSTEM',
+                content: `${userInfo.name} left!`,
+                timestamp: Date.now(),
+                peerId
+            };
+            this.onMessageReceivedCallback(message);
+        }
+
+        // Trigger disconnect callback
+        if (this.onPeerDisconnectedCallback) {
+            this.onPeerDisconnectedCallback(peerId);
         }
     }
 }
