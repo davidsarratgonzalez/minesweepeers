@@ -1,4 +1,4 @@
-# Minesweepeers 💣
+# Minesweepeers! 💣
 
 A peer-to-peer minesweeper game! Try it out at: https://davidsarratgonzalez.github.io/minesweepeers
 
@@ -16,6 +16,8 @@ It uses WebRTC technology through the PeerJS library to enable direct peer-to-pe
 6. No central server is needed - the data flows directly between all connected players' browsers!
 
 The only centralized component is the PeerJS broker server which helps establish the initial connection between peers. Once connected, all communication happens directly P2P.
+
+**Note:** As this application operates over peer-to-peer connections, network conditions between players can influence gameplay behavior and responsiveness. The game implements mechanisms to handle network variability, but optimal performance depends on stable connections between peers.
 
 ## Features
 

@@ -43,7 +43,7 @@ const UserSetup = ({ onComplete }) => {
 
     return (
         <div className="user-setup">
-            <h1 data-testid="user-setup-header">Minesweepeers</h1>
+            <h1 data-testid="user-setup-header">Mineswee<span style={{ color: '#1E88E5' }}>peers</span>!</h1>
             <form onSubmit={handleSubmit}>
                 {/* Username input section */}
                 <div className="form-group">
