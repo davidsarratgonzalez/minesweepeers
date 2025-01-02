@@ -26,10 +26,10 @@ const ChatMessage = ({ message, connectedUsers, currentUser }) => {
      * - Empty object for other system messages
      */
     const getSystemMessageStyle = (content) => {
-        if (content.includes('joined')) {
+        if (content.includes('joined') || content.includes('won')) {
             return { backgroundColor: '#e8f5e9', color: '#2e7d32' };
         }
-        if (content.includes('left')) {
+        if (content.includes('left') || content.includes('lost')) {
             return { backgroundColor: '#ffebee', color: '#c62828' };
         }
         return {};

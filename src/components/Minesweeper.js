@@ -39,8 +39,9 @@ import CursorOverlay from './CursorOverlay';
  * @param {Function} props.onCursorMove - Callback to sync cursor position with other players
  * @param {Object} props.peerCursors - Cursor positions of other players
  * @param {Array} props.connectedUsers - List of connected players
+ * @param {Function} props.addSystemMessage - Callback to add system messages
  */
-const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, onCursorMove, peerCursors, connectedUsers }) => {
+const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, onCursorMove, peerCursors, connectedUsers, addSystemMessage }) => {
     // Core game state
     const [localBoard, setLocalBoard] = useState(null);
     const [gameStatus, setGameStatus] = useState(GAME_STATUS.PLAYING);
@@ -61,6 +62,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
     const gameTimerRef = useRef(null);
     const gameContentRef = useRef(null);
     const boardRef = useRef(null);
+    const lastSystemMessage = useRef(0);
 
     /**
      * Initialize empty game board on component mount
@@ -97,6 +99,12 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
             config: config
         });
         
+        const now = Date.now();
+        if (now - lastSystemMessage.current > 1000) {
+            addSystemMessage('You lost!');
+            lastSystemMessage.current = now;
+        }
+        
         setCountdown(3);
         if (timerRef.current) clearInterval(timerRef.current);
         
@@ -111,7 +119,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
                 return prev - 1;
             });
         }, 1000);
-    }, [localBoard, onGameUpdate, onGameOver, config]);
+    }, [localBoard, onGameUpdate, onGameOver, config, addSystemMessage]);
 
     /**
      * Manages game timer updates while game is in progress
@@ -211,6 +219,12 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
             config: config
         });
         
+        const now = Date.now();
+        if (now - lastSystemMessage.current > 1000) {
+            addSystemMessage('You won!');
+            lastSystemMessage.current = now;
+        }
+        
         if (timerRef.current) clearInterval(timerRef.current);
         
         setCountdown(3);
@@ -225,7 +239,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
                 return prev - 1;
             });
         }, 1000);
-    }, [localBoard, onGameUpdate, onGameOver, config]);
+    }, [localBoard, onGameUpdate, onGameOver, config, addSystemMessage]);
 
     /**
      * Mouse and drag handling functions for board scrolling

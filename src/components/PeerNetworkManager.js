@@ -277,7 +277,7 @@ const PeerNetworkManager = () => {
                         onCursorMove={handleCursorMove}
                         peerCursors={peerCursors}
                         connectedUsers={connectedUsers}
-                        getCurrentTimerState={getCurrentTimerState}
+                        addSystemMessage={addSystemMessage}
                     />
                 ) : (
                     <GameConfig 
