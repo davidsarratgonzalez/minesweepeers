@@ -1,5 +1,13 @@
 body {
   margin: 0;
+  min-height: 100vh;
+  background: repeating-linear-gradient(
+    45deg,
+    #f0f0f0,
+    #f0f0f0 10px,
+    #e8e8e8 10px,
+    #e8e8e8 20px
+  );
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
@@ -10,4 +18,16 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Ensure the pattern shows up behind all components */
+#root {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* Keep mobile blocker above the pattern */
+.mobile-blocker {
+  z-index: 9999;
 }

@@ -1,16 +1,15 @@
 import React from 'react';
-import './App.css';
+import MobileBlocker from './components/MobileBlocker';
 import PeerNetworkManager from './components/PeerNetworkManager';
 
-function App() {
+const App = () => {
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Peer Minesweeper</h1>
-        <PeerNetworkManager />
-      </header>
-    </div>
+    <>
+      {isMobile ? <MobileBlocker /> : <PeerNetworkManager />}
+    </>
   );
-}
+};
 
 export default App;
