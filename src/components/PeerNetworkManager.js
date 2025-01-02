@@ -6,11 +6,14 @@ import UserSetup from './UserSetup';
 import GameConfig from './GameConfig';
 import Minesweeper from './Minesweeper';
 import { createEmptyBoard } from '../utils/minesweeperLogic';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 /**
  * Component for managing peer network connections and chat
  */
 const PeerNetworkManager = () => {
+    useWakeLock();
+
     const [targetPeerId, setTargetPeerId] = useState('');
     const { 
         peerId, 

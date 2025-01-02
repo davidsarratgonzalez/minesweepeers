@@ -20,7 +20,7 @@ class PeerNetwork {
      */
     constructor(config = {}) {
         this.peer = null;
-        this.connections = new Map(); // Stores active connections
+        this.connections = new Map(); // Stores active connections (peerId -> DataConnection)
         this.peerId = null;
         this.config = config;
         this.userInfo = null; // Store user info
@@ -42,7 +42,10 @@ class PeerNetwork {
         this.messages = [];
         this.cursorTimestamps = new Map(); // Track last cursor update time
         this.cursorCleanupInterval = null;
-        this.CURSOR_TIMEOUT = 7000; // Increase timeout to 7 seconds to account for network delays
+        this.CURSOR_TIMEOUT = 7000; // 7 seconds
+        this.currentGameConfig = null;
+        this.currentGameState = null;
+        this.gameConfig = null; // Legacy fallback if needed
     }
 
     /**
@@ -67,10 +70,11 @@ class PeerNetwork {
                 });
 
                 this.peer.on('error', (error) => {
-                    // Only try to reconnect if the peer is destroyed and it's not a "peer unavailable" error
+                    // Only try to reconnect if the peer is destroyed and it's not a "peer-unavailable" error
                     if (error.type === 'peer-unavailable') {
                         console.warn('Peer unavailable:', error.message);
                     } else if (this.destroyed) {
+                        // Attempt a reconnection if this was a temporary issue
                         this.peer.reconnect();
                     }
                     reject(error);
@@ -195,13 +199,13 @@ class PeerNetwork {
             this.connectedUsers.delete(conn.peer);
             this.pendingUserInfoRequests.delete(conn.peer);
             
-            // Send system message about disconnection if we have user info
             if (userInfo && this.onMessageReceivedCallback) {
+                // Inform about the disconnection
                 const message = {
                     type: 'SYSTEM',
                     content: `${userInfo.name} left!`,
                     timestamp: Date.now(),
-                    peerId: conn.peer  // Add peerId to track who left
+                    peerId: conn.peer
                 };
                 this.onMessageReceivedCallback(message);
             }
@@ -210,6 +214,34 @@ class PeerNetwork {
                 this.onPeerDisconnectedCallback(conn.peer);
             }
         });
+    }
+
+    /**
+     * Helper to decide if we should connect to a given peer
+     * @param {string} peerId - The peer's ID
+     * @returns {boolean} Whether a connection attempt is needed
+     */
+    shouldConnectToPeer(peerId) {
+        // Avoid connecting to self
+        if (peerId === this.peerId) return false;
+        // Avoid connecting if we already have them in connections
+        if (this.connections.has(peerId)) return false;
+        // Avoid connecting if we already have an outgoing connection to them
+        if (this.outgoingConnections.has(peerId)) return false;
+        return true;
+    }
+
+    /**
+     * Handle received peer list and establish missing connections
+     * @private
+     * @param {string[]} peers - List of peer IDs
+     */
+    async handlePeerListMessage(peers) {
+        for (const peerId of peers) {
+            if (this.shouldConnectToPeer(peerId)) {
+                await this.connectToPeer(peerId);
+            }
+        }
     }
 
     /**
@@ -227,7 +259,7 @@ class PeerNetwork {
             this.onUserInfoUpdatedCallback(peerId, userInfo);
         }
 
-        // Broadcast system message for new user
+        // Broadcast system message for new user only once
         if (!this.hasAnnouncedUser.has(peerId)) {
             this.hasAnnouncedUser.add(peerId);
         }
@@ -300,13 +332,13 @@ class PeerNetwork {
 
     /**
      * Connect to a peer using their ID
-     * @param {string} peerId - The ID of the peer to connect to
-     * @returns {Promise<void>}
+     * @param {string} targetPeerId - The ID of the peer to connect to
+     * @returns {Promise<DataConnection>}
      */
     async connectToPeer(targetPeerId) {
         try {
             const conn = this.peer.connect(targetPeerId);
-            this.outgoingConnections.add(conn.peer); // Mark this as an outgoing connection
+            this.outgoingConnections.add(conn.peer);
             this.handleIncomingConnection(conn);
             return conn;
         } catch (error) {
@@ -326,33 +358,6 @@ class PeerNetwork {
             type: 'PEER_LIST',
             peers: peerList
         });
-    }
-
-    /**
-     * Handle incoming messages from peers
-     * @private
-     * @param {string} peerId - The ID of the sending peer
-     * @param {Object} message - The received message
-     */
-    handlePeerMessage(peerId, message) {
-        if (message.type === 'PEER_LIST') {
-            this.handlePeerListMessage(message.peers);
-        } else if (message.type === 'CHAT' || message.type === 'SYSTEM') {
-            if (this.onMessageReceivedCallback) {
-                this.onMessageReceivedCallback(message);
-            }
-        }
-    }
-
-    /**
-     * Handle received peer list and establish missing connections
-     * @private
-     * @param {string[]} peers - List of peer IDs
-     */
-    async handlePeerListMessage(peers) {
-        for (const peerId of peers) {
-            await this.connectToPeer(peerId);
-        }
     }
 
     /**
@@ -511,6 +516,8 @@ class PeerNetwork {
 
     /**
      * Start a new game and broadcast to peers
+     * @param {Object} config - The starting config
+     * @param {Object} board - The starting board
      */
     startGame(config, board) {
         // Clear any existing game state first
@@ -523,6 +530,7 @@ class PeerNetwork {
             board,
             startTime: Date.now()
         };
+
         const message = {
             type: 'GAME_START',
             config,
@@ -540,14 +548,14 @@ class PeerNetwork {
 
     /**
      * Update game state and broadcast to peers
+     * @param {Object} state - The new game state: { board, lastUpdate, etc. }
      */
     updateGameState(state) {
         if (!this.currentGameState) return;
 
-        // The board is already a blueprint, no need to convert
         this.currentGameState = {
             ...this.currentGameState,
-            board: state.board  // Use the blueprint directly
+            board: state.board
         };
 
         const message = {
@@ -566,14 +574,13 @@ class PeerNetwork {
 
     /**
      * Broadcast game over to peers
+     * @param {string|null} reason - The reason for game over
      */
     broadcastGameOver(reason) {
-        // Clear our own game state IMMEDIATELY
         this.currentGameState = null;
         this.currentGameConfig = null;
         this.gameConfig = null;
 
-        // Send game over to peers IMMEDIATELY
         const message = {
             type: 'GAME_OVER',
             reason
@@ -583,7 +590,6 @@ class PeerNetwork {
             conn.send(message);
         });
 
-        // Notify local listeners IMMEDIATELY
         if (this.onGameOverCallback) {
             this.onGameOverCallback(reason);
         }
@@ -605,7 +611,6 @@ class PeerNetwork {
     }
 
     handleGameOver(reason) {
-        // Clear ALL state IMMEDIATELY
         this.currentGameState = null;
         this.currentGameConfig = null;
         this.gameConfig = null;
@@ -630,7 +635,7 @@ class PeerNetwork {
 
     /**
      * Broadcast cursor position to all peers
-     * @param {Object} position - The cursor position {x, y}
+     * @param {Object} position - The cursor position { x, y, isInCanvas }
      */
     broadcastCursorPosition(position) {
         if (!position) return;
@@ -638,14 +643,13 @@ class PeerNetwork {
         const message = {
             type: 'CURSOR_UPDATE',
             position,
-            timestamp: Date.now() // Add timestamp to the message
+            timestamp: Date.now()
         };
 
         this.connections.forEach(conn => {
             conn.send(message);
         });
 
-        // Update own timestamp when broadcasting
         this.cursorTimestamps.set(this.peerId, Date.now());
         if (!this.cursorCleanupInterval) {
             this.startCursorCleanup();
@@ -653,15 +657,12 @@ class PeerNetwork {
     }
 
     handleCursorUpdate(peerId, position) {
-        // Update timestamp when cursor data is received
         if (position) {
             this.cursorTimestamps.set(peerId, Date.now());
-            // Start cleanup if not already running
             if (!this.cursorCleanupInterval) {
                 this.startCursorCleanup();
             }
         } else {
-            // If position is null, remove the timestamp
             this.cursorTimestamps.delete(peerId);
         }
 
@@ -675,9 +676,8 @@ class PeerNetwork {
     }
 
     handlePeerDisconnected(peerId) {
-        // ... existing disconnect handling
         if (this.onCursorUpdateCallback) {
-            // Send null position to remove cursor
+            // Send null to remove cursor
             this.onCursorUpdateCallback(peerId, null);
         }
         this.cursorTimestamps.delete(peerId);
@@ -698,13 +698,15 @@ class PeerNetwork {
         }
     }
 
+    /**
+     * Attempt to fetch the current timer from some local state if available
+     * @param {Object} config - The game config
+     * @returns {Object} Timer with minutes, seconds, enabled
+     */
     getCurrentTimerState(config) {
-        // If we have an active game timer, use that
         if (this.currentGameState?.getCurrentTimerState) {
             return this.currentGameState.getCurrentTimerState();
         }
-
-        // Fallback to calculating from start time
         return config.timer;
     }
 
@@ -713,18 +715,15 @@ class PeerNetwork {
      * @private
      */
     startCursorCleanup() {
-        // Clear any existing interval first
         if (this.cursorCleanupInterval) {
             clearInterval(this.cursorCleanupInterval);
         }
-
         this.cursorCleanupInterval = setInterval(() => {
             const now = Date.now();
             let hasRemovals = false;
 
             this.cursorTimestamps.forEach((timestamp, peerId) => {
                 if (now - timestamp > this.CURSOR_TIMEOUT) {
-                    // Remove stale cursor
                     this.cursorTimestamps.delete(peerId);
                     if (this.onCursorUpdateCallback) {
                         this.onCursorUpdateCallback(peerId, null);
@@ -732,12 +731,10 @@ class PeerNetwork {
                     hasRemovals = true;
                 }
             });
-
-            // If no cursors left, clear the interval
             if (hasRemovals && this.cursorTimestamps.size === 0) {
                 this.stopCursorCleanup();
             }
-        }, 1000); // Check every second
+        }, 1000);
     }
 
     /**
