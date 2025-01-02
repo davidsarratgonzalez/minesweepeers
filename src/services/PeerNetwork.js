@@ -268,17 +268,6 @@ class PeerNetwork {
             this.connectedUsers.delete(conn.peer);
             this.pendingUserInfoRequests.delete(conn.peer);
             
-            if (userInfo && this.onMessageReceivedCallback) {
-                // Inform about the disconnection
-                const message = {
-                    type: 'SYSTEM',
-                    content: `${userInfo.name} left!`,
-                    timestamp: Date.now(),
-                    peerId: conn.peer
-                };
-                this.onMessageReceivedCallback(message);
-            }
-
             if (this.onPeerDisconnectedCallback) {
                 this.onPeerDisconnectedCallback(conn.peer);
             }
@@ -332,10 +321,8 @@ class PeerNetwork {
             this.onUserInfoUpdatedCallback(peerId, userInfo);
         }
 
-        // Broadcast system message for new user only once
-        if (!this.hasAnnouncedUser.has(peerId)) {
-            this.hasAnnouncedUser.add(peerId);
-        }
+        // Remove the announcement logic
+        this.hasAnnouncedUser.add(peerId);
     }
 
     /**
@@ -1006,17 +993,6 @@ class PeerNetwork {
 
         // Handle cursor cleanup
         this.handlePeerDisconnected(peerId);
-
-        // Notify about disconnection if we have user info
-        if (userInfo && this.onMessageReceivedCallback) {
-            const message = {
-                type: 'SYSTEM',
-                content: `${userInfo.name} left!`,
-                timestamp: Date.now(),
-                peerId
-            };
-            this.onMessageReceivedCallback(message);
-        }
 
         // Trigger disconnect callback
         if (this.onPeerDisconnectedCallback) {

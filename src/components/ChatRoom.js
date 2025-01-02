@@ -44,20 +44,6 @@ const ChatRoom = ({
     }, [messages]);
 
     /**
-     * Tracks and notifies when new users join the chat
-     * Prevents duplicate notifications for the same user
-     */
-    useEffect(() => {
-        const tracker = notificationTracker.current;
-
-        connectedUsers.forEach((user, peerId) => {
-            if (peerId !== currentUser.peerId && tracker.shouldNotifyJoin(peerId)) {
-                addSystemMessage(`${user.name} joined!`);
-            }
-        });
-    }, [connectedUsers, currentUser.peerId, addSystemMessage]);
-
-    /**
      * Resets the notification tracker and message input when chat is disabled
      * Ensures clean state when reconnecting
      */
