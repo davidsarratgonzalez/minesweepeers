@@ -160,11 +160,20 @@ const usePeerNetwork = (config = {}) => {
      * Disconnects from the peer network and resets all connection states.
      * Triggers reinitialization by clearing peer ID.
      */
-    const disconnectFromNetwork = useCallback(() => {
-        network.disconnect();
-        setConnectedPeers([]);
-        setConnectedUsers(new Map());
-        setPeerId(null);
+    const disconnectFromNetwork = useCallback(async () => {
+        try {
+            const newPeerId = await network.disconnect();
+            if (newPeerId) {
+                setPeerId(newPeerId);
+            } else {
+                setPeerId(null);
+            }
+            setConnectedPeers([]);
+            setConnectedUsers(new Map());
+        } catch (error) {
+            console.error('Error during network disconnect:', error);
+            setPeerId(null);
+        }
     }, [network]);
 
     /**

@@ -95,10 +95,10 @@ const PeerNetworkManager = () => {
     /**
      * Cleanly disconnects from network and resets game state
      */
-    const handleDisconnect = () => {
+    const handleDisconnect = async () => {
         endGame(null, false);
         updateGameConfig(null);
-        disconnectFromNetwork();
+        await disconnectFromNetwork();
     };
 
     /**

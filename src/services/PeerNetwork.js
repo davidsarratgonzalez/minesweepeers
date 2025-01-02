@@ -468,8 +468,9 @@ class PeerNetwork {
     /**
      * Disconnects from current peers and destroys current peer
      * @param {string} [reason='manual'] - Reason for disconnection
+     * @returns {Promise<string>} Resolves with new peer ID after reconnection
      */
-    disconnect(reason = 'manual') {
+    async disconnect(reason = 'manual') {
         if (!this.peer) return;
 
         const disconnectMessage = {
@@ -487,55 +488,61 @@ class PeerNetwork {
             }
         });
 
-        // Small delay to allow messages to be sent before closing connections
-        setTimeout(() => {
-            // Close all peer connections
-            this.connections.forEach(conn => {
-                try {
-                    conn.close();
-                } catch (error) {
-                    console.warn('Error closing connection:', error);
-                }
-            });
-
-            // Clear all connection tracking
-            this.connections.clear();
-            this.outgoingConnections.clear();
-            this.connectedUsers.clear();
-            this.pendingUserInfoRequests.clear();
-            this.hasAnnouncedUser.clear();
-            this.cursorTimestamps.clear();
-
-            if (this.cursorCleanupInterval) {
-                clearInterval(this.cursorCleanupInterval);
-                this.cursorCleanupInterval = null;
-            }
-
-            // Clear game state
-            this.currentGameState = null;
-            this.currentGameConfig = null;
-            this.gameConfig = null;
-
-            // Destroy the current peer completely
-            if (this.peer) {
-                this.peer.destroy();
-                this.peer = null;
-                this.peerId = null;
-            }
-
-            // Generate new peer immediately
-            this.initialize(this.userInfo).catch(error => {
-                console.error('Failed to initialize new peer after disconnect:', error);
-            });
-        }, 100);
-
+        // Clear heartbeat tracking
         if (this.heartbeatInterval) {
             clearInterval(this.heartbeatInterval);
             this.heartbeatInterval = null;
         }
-
         this.lastHeartbeats.clear();
         this.reconnectionAttempts.clear();
+
+        return new Promise((resolve) => {
+            // Small delay to allow messages to be sent before closing connections
+            setTimeout(async () => {
+                // Close all peer connections
+                this.connections.forEach(conn => {
+                    try {
+                        conn.close();
+                    } catch (error) {
+                        console.warn('Error closing connection:', error);
+                    }
+                });
+
+                // Clear all connection tracking
+                this.connections.clear();
+                this.outgoingConnections.clear();
+                this.connectedUsers.clear();
+                this.pendingUserInfoRequests.clear();
+                this.hasAnnouncedUser.clear();
+                this.cursorTimestamps.clear();
+
+                if (this.cursorCleanupInterval) {
+                    clearInterval(this.cursorCleanupInterval);
+                    this.cursorCleanupInterval = null;
+                }
+
+                // Clear game state
+                this.currentGameState = null;
+                this.currentGameConfig = null;
+                this.gameConfig = null;
+
+                // Destroy the current peer completely
+                if (this.peer) {
+                    this.peer.destroy();
+                    this.peer = null;
+                    this.peerId = null;
+                }
+
+                try {
+                    // Generate new peer immediately and resolve with new ID
+                    const newPeerId = await this.initialize(this.userInfo);
+                    resolve(newPeerId);
+                } catch (error) {
+                    console.error('Failed to initialize new peer after disconnect:', error);
+                    resolve(null);
+                }
+            }, 100);
+        });
     }
 
     /**
