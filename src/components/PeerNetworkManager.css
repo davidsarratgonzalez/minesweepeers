@@ -201,7 +201,6 @@
 
 /* Game content wrapper */
 .game-content {
-    padding: 20px;
     min-width: 100%;
     min-height: 100%;
     display: flex;

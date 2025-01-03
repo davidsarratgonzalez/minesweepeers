@@ -367,12 +367,14 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
 
     return (
         <div className="minesweeper">
-            <GameHeader 
-                gameStatus={gameStatus}
-                flagsCount={flagsCount}
-                totalMines={config.bombs}
-                timer={timer}
-            />
+            <div className="header-wrapper">
+                <GameHeader 
+                    gameStatus={gameStatus}
+                    flagsCount={flagsCount}
+                    totalMines={config.bombs}
+                    timer={timer}
+                />
+            </div>
             <div 
                 ref={containerRef}
                 className={`game-scroll-container ${isDragging ? 'dragging' : ''}`}
