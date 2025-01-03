@@ -1,3 +1,4 @@
+/* Container for all peer cursors that overlays the main content */
 .cursor-overlay {
     position: absolute;
     top: 0;
@@ -7,6 +8,7 @@
     pointer-events: none;
 }
 
+/* Individual peer cursor dot styling */
 .peer-cursor {
     position: absolute;
     width: 12px;
@@ -16,6 +18,7 @@
     transition: all 0.1s ease;
 }
 
+/* Name label that appears next to each peer cursor */
 .cursor-name {
     position: absolute;
     left: 100%;

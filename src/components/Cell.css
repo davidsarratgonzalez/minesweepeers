@@ -1,3 +1,4 @@
+/* Base cell styling */
 .cell {
     width: 30px;
     height: 30px;
@@ -13,10 +14,12 @@
     transition: background-color 0.2s;
 }
 
+/* Hover state */
 .cell:hover:not(:disabled) {
     background-color: #bbb;
 }
 
+/* Revealed cell states */
 .cell.revealed {
     background-color: #eee;
 }
@@ -25,6 +28,7 @@
     background-color: #ff4444;
 }
 
+/* Icon styling */
 .cell i {
     font-size: 14px;
 }
@@ -41,6 +45,7 @@
     color: white;
 }
 
+/* Adjacent mine number colors */
 .cell.adjacent-1 { color: #2196F3; }
 .cell.adjacent-2 { color: #4CAF50; }
 .cell.adjacent-3 { color: #f44336; }
@@ -48,4 +53,4 @@
 .cell.adjacent-5 { color: #FF9800; }
 .cell.adjacent-6 { color: #00BCD4; }
 .cell.adjacent-7 { color: #795548; }
-.cell.adjacent-8 { color: #607D8B; } 
+.cell.adjacent-8 { color: #607D8B; }

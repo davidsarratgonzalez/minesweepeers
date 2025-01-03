@@ -1,3 +1,4 @@
+/* Base chat message styles */
 .chat-message {
     padding: 8px 12px;
     margin: 4px 0;
@@ -5,11 +6,13 @@
     max-width: 80%;
 }
 
+/* User message styles */
 .chat-message.user {
     background-color: #f5f5f5;
     margin-right: auto;
 }
 
+/* System message styles */
 .chat-message.system {
     background-color: #E3F2FD;
     color: #1976D2;
@@ -19,12 +22,14 @@
     margin: 8px auto;
 }
 
+/* Message sender name styles */
 .chat-message .sender {
     color: #2196F3;
     font-weight: 500;
     margin-right: 8px;
 }
 
+/* Message content text styles */
 .chat-message .content {
     word-break: break-word;
 } 

@@ -1,3 +1,4 @@
+/* Main board container styling */
 .board {
     display: inline-block;
     background-color: #e0e0e0;
@@ -10,6 +11,7 @@
     -ms-user-select: none;
 }
 
+/* Row container for board squares */
 .board-row {
     display: flex;
     white-space: nowrap;

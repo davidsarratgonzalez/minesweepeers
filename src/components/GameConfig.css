@@ -1,3 +1,4 @@
+/* Main container styles */
 .game-config {
     width: 350px;
     min-width: 350px;
@@ -12,12 +13,14 @@
     position: relative;
 }
 
+/* Form layout */
 .game-config form {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
+/* Game container layout */
 .game-container {
     width: 100%;
     height: 100vh;
@@ -27,6 +30,7 @@
     overflow: auto;
 }
 
+/* Header styles */
 .game-config h2 {
     text-align: center;
     margin-bottom: 16px;
@@ -34,6 +38,7 @@
     color: #333;
 }
 
+/* Presets section */
 .presets {
     margin-bottom: 16px;
 }
@@ -44,6 +49,7 @@
     font-size: 16px;
 }
 
+/* Preset buttons container */
 .preset-buttons {
     display: flex;
     gap: 8px;
@@ -51,6 +57,7 @@
     justify-content: space-between;
 }
 
+/* Individual preset button styles */
 .preset-button {
     flex: 1;
     min-width: calc(33% - 8px);
@@ -73,12 +80,14 @@
     border-color: #2196F3;
 }
 
+/* Configuration group styles */
 .config-group h3 {
     margin-bottom: 8px;
     color: #666;
     font-size: 16px;
 }
 
+/* Input row layout */
 .input-row {
     display: flex;
     gap: 16px;
@@ -94,6 +103,7 @@
     min-width: 0;
 }
 
+/* Number input styles */
 .input-row input[type="number"] {
     width: 100%;
     max-width: 70px;
@@ -103,6 +113,7 @@
     font-size: 14px;
 }
 
+/* Checkbox styles */
 .checkbox-label {
     display: flex;
     align-items: center;
@@ -115,6 +126,7 @@
     height: 16px;
 }
 
+/* Start button styles */
 .start-button {
     width: 100%;
     padding: 12px;
@@ -131,6 +143,12 @@
     background-color: #43A047;
 }
 
+.start-button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* Error and info message styles */
 .error {
     color: #f44336;
     font-size: 12px;
@@ -144,11 +162,7 @@
     margin-top: 4px;
 }
 
-.start-button:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-}
-
+/* Error container styles */
 .error-container {
     margin-top: 8px;
     display: flex;
@@ -159,4 +173,4 @@
 .error {
     color: #ff4444;
     font-size: 0.9em;
-} 
+}
