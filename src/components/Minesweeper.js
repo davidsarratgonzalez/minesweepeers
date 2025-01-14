@@ -209,16 +209,22 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
      * Handles win condition, reveals board, and initiates countdown
      */
     const handleWin = useCallback(() => {
+        // First check if we're already in a won/lost state to prevent duplicate handling
+        if (gameStatus !== GAME_STATUS.PLAYING) return;
+
         setGameStatus(GAME_STATUS.WON);
         const revealedBoard = revealAllMines(localBoard);
         setLocalBoard(revealedBoard);
         
+        // Create and send board blueprint to peers
         const blueprint = createBoardBlueprint(revealedBoard);
         onGameUpdate({
             board: blueprint,
-            config: config
+            config: config,
+            gameStatus: GAME_STATUS.WON  // Add game status to update
         });
         
+        // Only add system message if we're the one who triggered the win
         const now = Date.now();
         if (now - lastSystemMessage.current > 1000) {
             addSystemMessage('You won!');
@@ -239,7 +245,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
                 return prev - 1;
             });
         }, 1000);
-    }, [localBoard, onGameUpdate, onGameOver, config, addSystemMessage]);
+    }, [localBoard, onGameUpdate, onGameOver, config, addSystemMessage, gameStatus]);
 
     /**
      * Mouse and drag handling functions for board scrolling
@@ -320,6 +326,25 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
             setLocalBoard(updatedBoard);
             setFlagsCount(countFlags(updatedBoard));
 
+            // Handle received game status
+            if (networkBoard.gameStatus === GAME_STATUS.WON && gameStatus === GAME_STATUS.PLAYING) {
+                setGameStatus(GAME_STATUS.WON);
+                addSystemMessage('Game won!');
+                setCountdown(3);
+                if (timerRef.current) clearInterval(timerRef.current);
+                timerRef.current = setInterval(() => {
+                    setCountdown(prev => {
+                        if (prev <= 1) {
+                            clearInterval(timerRef.current);
+                            timerRef.current = null;
+                            onGameOver();
+                            return null;
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
+            }
+
             if (minesPlaced) {
                 const hasRevealedMine = updatedBoard.some(row => 
                     row.some(cell => 
@@ -329,12 +354,12 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
 
                 if (hasRevealedMine && gameStatus === GAME_STATUS.PLAYING) {
                     setTimeout(() => handleGameOver(), 0);
-                } else if (checkWinCondition(updatedBoard)) {
+                } else if (checkWinCondition(updatedBoard) && gameStatus === GAME_STATUS.PLAYING) {
                     setTimeout(() => handleWin(), 0);
                 }
             }
         }
-    }, [networkBoard, gameStatus, handleGameOver, handleWin, localBoard, minesPlaced]);
+    }, [networkBoard, gameStatus, handleGameOver, handleWin, localBoard, minesPlaced, addSystemMessage, onGameOver]);
 
     /**
      * Cursor tracking event listeners setup and cleanup
