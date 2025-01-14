@@ -169,17 +169,28 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
             newBoard = revealCell(localBoard, x, y);
         }
 
+        // Update local board state immediately
         setLocalBoard(newBoard);
         
+        // Create blueprint and update peers
         const blueprint = createBoardBlueprint(newBoard);
         onGameUpdate({
             board: blueprint,
             config: config
         });
 
+        // Check win/lose conditions after board is updated
         if (newBoard[y][x].isMine) {
             setTimeout(() => handleGameOver(), 0);
         } else if (checkWinCondition(newBoard)) {
+            // Ensure board is fully revealed before triggering win
+            const finalBoard = revealCell(newBoard, x, y);
+            setLocalBoard(finalBoard);
+            const finalBlueprint = createBoardBlueprint(finalBoard);
+            onGameUpdate({
+                board: finalBlueprint,
+                config: config
+            });
             setTimeout(() => handleWin(), 0);
         }
     };
@@ -213,7 +224,15 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
         if (gameStatus !== GAME_STATUS.PLAYING) return;
 
         setGameStatus(GAME_STATUS.WON);
-        const revealedBoard = revealAllMines(localBoard);
+        
+        // Reveal all cells
+        const revealedBoard = localBoard.map(row => 
+            row.map(cell => ({
+                ...cell,
+                status: CELL_STATUS.REVEALED
+            }))
+        );
+        
         setLocalBoard(revealedBoard);
         
         // Create and send board blueprint to peers
@@ -221,7 +240,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
         onGameUpdate({
             board: blueprint,
             config: config,
-            gameStatus: GAME_STATUS.WON  // Add game status to update
+            gameStatus: GAME_STATUS.WON
         });
         
         // Only add system message if we're the one who triggered the win
