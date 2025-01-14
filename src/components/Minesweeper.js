@@ -348,7 +348,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
             // Handle received game status
             if (networkBoard.gameStatus === GAME_STATUS.WON && gameStatus === GAME_STATUS.PLAYING) {
                 setGameStatus(GAME_STATUS.WON);
-                addSystemMessage('Game won!');
+                addSystemMessage('You won!');
                 setCountdown(3);
                 if (timerRef.current) clearInterval(timerRef.current);
                 timerRef.current = setInterval(() => {
