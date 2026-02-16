@@ -2,30 +2,32 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Board from './Board';
 import GameHeader from './GameHeader';
 import { CELL_STATUS, GAME_STATUS } from '../constants/gameTypes';
-import { 
-    revealCell, 
-    toggleFlag, 
-    countFlags, 
-    checkWinCondition, 
-    revealAllMines, 
-    createBoardBlueprint, 
-    applyBoardBlueprint, 
-    createEmptyBoard, 
-    placeMines, 
-    createTimer, 
-    updateTimer 
+import {
+    revealCell,
+    toggleFlag,
+    countFlags,
+    checkWinCondition,
+    revealAllMines,
+    createBoardBlueprint,
+    applyBoardBlueprint,
+    createEmptyBoard,
+    placeMines,
+    createTimer,
+    updateTimer,
+    applyCellAction,
+    CELL_ACTION_TYPES
 } from '../utils/minesweeperLogic';
 import './Minesweeper.css';
 import CursorOverlay from './CursorOverlay';
 
 /**
  * Minesweeper Component - Main game component handling game logic and state
- * 
+ *
  * Manages:
  * - Game board state and updates
  * - Game status (playing/won/lost)
  * - Timer functionality
- * - Multiplayer synchronization
+ * - Multiplayer synchronization via cell-level actions
  * - Cursor tracking and display
  * - Board interaction (clicks, flags)
  * - Win/lose conditions
@@ -33,15 +35,18 @@ import CursorOverlay from './CursorOverlay';
  * @component
  * @param {Object} props - Component properties
  * @param {Object} props.config - Game configuration (width, height, bombs, timer settings)
- * @param {Object} props.board - Network-synced board state from other players
- * @param {Function} props.onGameUpdate - Callback to notify other players of game state changes
+ * @param {Object} props.board - Network-synced board state (used for initial sync when joining mid-game)
+ * @param {Function} props.onCellAction - Callback to broadcast cell actions to peers
+ * @param {Function} props.onSyncBoard - Callback to sync board to network storage (no broadcast)
+ * @param {Array} props.pendingActions - Queue of cell actions received from peers
+ * @param {Function} props.clearPendingActions - Callback to clear processed pending actions
  * @param {Function} props.onGameOver - Callback triggered when game ends
  * @param {Function} props.onCursorMove - Callback to sync cursor position with other players
  * @param {Object} props.peerCursors - Cursor positions of other players
  * @param {Array} props.connectedUsers - List of connected players
  * @param {Function} props.addSystemMessage - Callback to add system messages
  */
-const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, onCursorMove, peerCursors, connectedUsers, addSystemMessage }) => {
+const Minesweeper = ({ config, board: networkBoard, onCellAction, onSyncBoard, pendingActions, clearPendingActions, onGameOver, onCursorMove, peerCursors, connectedUsers, addSystemMessage }) => {
     // Core game state
     const [localBoard, setLocalBoard] = useState(null);
     const [gameStatus, setGameStatus] = useState(GAME_STATUS.PLAYING);
@@ -63,6 +68,16 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
     const gameContentRef = useRef(null);
     const boardRef = useRef(null);
     const lastSystemMessage = useRef(0);
+    const initialBoardApplied = useRef(false);
+
+    /**
+     * Syncs the current board to PeerNetwork storage for new-peer joins.
+     * Does NOT broadcast to existing peers.
+     */
+    const syncBoardToNetwork = useCallback((board) => {
+        const blueprint = createBoardBlueprint(board);
+        onSyncBoard(blueprint);
+    }, [onSyncBoard]);
 
     /**
      * Initialize empty game board on component mount
@@ -86,28 +101,26 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
     }, []);
 
     /**
-     * Handles game over state, reveals mines, and initiates countdown
+     * Handles game over state, reveals mines, and initiates countdown.
+     * Each peer detects game-over locally after applying a REVEAL action on a mine.
      */
     const handleGameOver = useCallback(() => {
         const revealedBoard = revealAllMines(localBoard);
         setLocalBoard(revealedBoard);
         setGameStatus(GAME_STATUS.LOST);
-        
-        const blueprint = createBoardBlueprint(revealedBoard);
-        onGameUpdate({
-            board: blueprint,
-            config: config
-        });
-        
+
+        // Sync revealed board so new peers joining see the correct end state
+        syncBoardToNetwork(revealedBoard);
+
         const now = Date.now();
         if (now - lastSystemMessage.current > 1000) {
             addSystemMessage('You lost!');
             lastSystemMessage.current = now;
         }
-        
+
         setCountdown(3);
         if (timerRef.current) clearInterval(timerRef.current);
-        
+
         timerRef.current = setInterval(() => {
             setCountdown(prev => {
                 if (prev <= 1) {
@@ -119,7 +132,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
                 return prev - 1;
             });
         }, 1000);
-    }, [localBoard, onGameUpdate, onGameOver, config, addSystemMessage]);
+    }, [localBoard, syncBoardToNetwork, onGameOver, addSystemMessage]);
 
     /**
      * Manages game timer updates while game is in progress
@@ -139,20 +152,13 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
      */
     useEffect(() => {
         if (timer.isCountdown && timer.currentSeconds === 0 && gameStatus === GAME_STATUS.PLAYING) {
-            const revealedBoard = revealAllMines(localBoard);
-            setLocalBoard(revealedBoard);
-            
-            onGameUpdate({
-                ...config,
-                board: revealedBoard
-            });
-            
             handleGameOver();
         }
-    }, [timer.currentSeconds, timer.isCountdown, gameStatus]);
+    }, [timer.currentSeconds, timer.isCountdown, gameStatus, handleGameOver]);
 
     /**
-     * Handles cell click events, including first click mine placement
+     * Handles cell click events, including first click mine placement.
+     * Sends cell-level actions to peers instead of full board state.
      * @param {number} x - X coordinate of clicked cell
      * @param {number} y - Y coordinate of clicked cell
      */
@@ -160,43 +166,48 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
         if (gameStatus !== GAME_STATUS.PLAYING) return;
 
         let newBoard;
+
         if (isFirstClick) {
             newBoard = placeMines(localBoard, config.bombs, x, y);
             setMinesPlaced(true);
             setIsFirstClick(false);
             newBoard = revealCell(newBoard, x, y);
+
+            // Send FIRST_REVEAL with the full board blueprint (mine positions)
+            const blueprint = createBoardBlueprint(newBoard);
+            onCellAction({
+                action: CELL_ACTION_TYPES.FIRST_REVEAL,
+                x,
+                y,
+                board: blueprint
+            });
         } else {
             newBoard = revealCell(localBoard, x, y);
+            onCellAction({
+                action: CELL_ACTION_TYPES.REVEAL,
+                x,
+                y
+            });
         }
 
         // Update local board state immediately
         setLocalBoard(newBoard);
-        
-        // Create blueprint and update peers
-        const blueprint = createBoardBlueprint(newBoard);
-        onGameUpdate({
-            board: blueprint,
-            config: config
-        });
+        setFlagsCount(countFlags(newBoard));
+
+        // Sync board to network storage (for new-peer joins, no broadcast)
+        syncBoardToNetwork(newBoard);
 
         // Check win/lose conditions after board is updated
         if (newBoard[y][x].isMine) {
             setTimeout(() => handleGameOver(), 0);
         } else if (checkWinCondition(newBoard)) {
-            // Ensure board is fully revealed before triggering win
-            const finalBoard = revealCell(newBoard, x, y);
-            setLocalBoard(finalBoard);
-            const finalBlueprint = createBoardBlueprint(finalBoard);
-            onGameUpdate({
-                board: finalBlueprint,
-                config: config
-            });
             setTimeout(() => handleWin(), 0);
         }
     };
 
     /**
-     * Handles right-click flag placement
+     * Handles right-click flag placement.
+     * Sends FLAG action to peers instead of full board state.
      * @param {Event} e - Click event
      * @param {number} x - X coordinate of flagged cell
      * @param {number} y - Y coordinate of flagged cell
@@ -208,50 +219,48 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
         const newBoard = toggleFlag(localBoard, x, y);
         setLocalBoard(newBoard);
         setFlagsCount(countFlags(newBoard));
-        
-        const blueprint = createBoardBlueprint(newBoard);
-        onGameUpdate({
-            board: blueprint,
-            config: config
+
+        // Send FLAG action to peers
+        onCellAction({
+            action: CELL_ACTION_TYPES.FLAG,
+            x,
+            y
         });
+
+        // Sync board to network storage (for new-peer joins, no broadcast)
+        syncBoardToNetwork(newBoard);
     };
 
     /**
-     * Handles win condition, reveals board, and initiates countdown
+     * Handles win condition, reveals board, and initiates countdown.
+     * Each peer detects win locally after applying the action that reveals the last safe cell.
      */
     const handleWin = useCallback(() => {
-        // First check if we're already in a won/lost state to prevent duplicate handling
         if (gameStatus !== GAME_STATUS.PLAYING) return;
 
         setGameStatus(GAME_STATUS.WON);
-        
+
         // Reveal all cells
-        const revealedBoard = localBoard.map(row => 
+        const revealedBoard = localBoard.map(row =>
             row.map(cell => ({
                 ...cell,
                 status: CELL_STATUS.REVEALED
             }))
         );
-        
+
         setLocalBoard(revealedBoard);
-        
-        // Create and send board blueprint to peers
-        const blueprint = createBoardBlueprint(revealedBoard);
-        onGameUpdate({
-            board: blueprint,
-            config: config,
-            gameStatus: GAME_STATUS.WON
-        });
-        
-        // Only add system message if we're the one who triggered the win
+
+        // Sync revealed board (no broadcast)
+        syncBoardToNetwork(revealedBoard);
+
         const now = Date.now();
         if (now - lastSystemMessage.current > 1000) {
             addSystemMessage('You won!');
             lastSystemMessage.current = now;
         }
-        
+
         if (timerRef.current) clearInterval(timerRef.current);
-        
+
         setCountdown(3);
         timerRef.current = setInterval(() => {
             setCountdown(prev => {
@@ -264,7 +273,7 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
                 return prev - 1;
             });
         }, 1000);
-    }, [localBoard, onGameUpdate, onGameOver, config, addSystemMessage, gameStatus]);
+    }, [localBoard, syncBoardToNetwork, onGameOver, addSystemMessage, gameStatus]);
 
     /**
      * Mouse and drag handling functions for board scrolling
@@ -327,13 +336,18 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
     }, [handleMouseMove, handleMouseUp]);
 
     /**
-     * Network board state synchronization
+     * Applies the initial board state when a new peer joins mid-game.
+     * Only runs once when the component mounts with a networkBoard that has data.
      */
     useEffect(() => {
-        if (localBoard && networkBoard?.board) {
-            const updatedBoard = applyBoardBlueprint(localBoard, networkBoard.board);
-            
-            const hasMinePlacement = updatedBoard.some(row => 
+        if (localBoard && networkBoard?.board && !initialBoardApplied.current) {
+            // networkBoard.board could be a nested structure from legacy GAME_STATE
+            const blueprint = Array.isArray(networkBoard.board) ? networkBoard.board : networkBoard;
+            if (!Array.isArray(blueprint)) return;
+
+            const updatedBoard = applyBoardBlueprint(localBoard, blueprint);
+
+            const hasMinePlacement = updatedBoard.some(row =>
                 row.some(cell => cell.isMine)
             );
 
@@ -344,29 +358,12 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
 
             setLocalBoard(updatedBoard);
             setFlagsCount(countFlags(updatedBoard));
+            initialBoardApplied.current = true;
 
-            // Handle received game status
-            if (networkBoard.gameStatus === GAME_STATUS.WON && gameStatus === GAME_STATUS.PLAYING) {
-                setGameStatus(GAME_STATUS.WON);
-                addSystemMessage('You won!');
-                setCountdown(3);
-                if (timerRef.current) clearInterval(timerRef.current);
-                timerRef.current = setInterval(() => {
-                    setCountdown(prev => {
-                        if (prev <= 1) {
-                            clearInterval(timerRef.current);
-                            timerRef.current = null;
-                            onGameOver();
-                            return null;
-                        }
-                        return prev - 1;
-                    });
-                }, 1000);
-            }
-
-            if (minesPlaced) {
-                const hasRevealedMine = updatedBoard.some(row => 
-                    row.some(cell => 
+            // Check for game-ending state in the received board
+            if (hasMinePlacement) {
+                const hasRevealedMine = updatedBoard.some(row =>
+                    row.some(cell =>
                         cell.status === CELL_STATUS.REVEALED && cell.isMine
                     )
                 );
@@ -378,7 +375,67 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
                 }
             }
         }
-    }, [networkBoard, gameStatus, handleGameOver, handleWin, localBoard, minesPlaced, addSystemMessage, onGameOver]);
+    }, [networkBoard]);
+
+    /**
+     * Processes pending cell actions received from network peers.
+     * Actions are applied sequentially to the local board.
+     * After processing, checks for win/lose conditions.
+     */
+    useEffect(() => {
+        if (!pendingActions || pendingActions.length === 0 || !localBoard) return;
+        if (gameStatus !== GAME_STATUS.PLAYING) {
+            clearPendingActions();
+            return;
+        }
+
+        let currentBoard = localBoard;
+        let minesWerePlaced = minesPlaced;
+
+        for (const action of pendingActions) {
+            // Guard: if FIRST_REVEAL arrives but mines are already placed,
+            // just do a normal reveal (prevents overwriting mine layout from a race)
+            if (action.action === CELL_ACTION_TYPES.FIRST_REVEAL && minesWerePlaced) {
+                currentBoard = revealCell(currentBoard, action.x, action.y);
+            } else {
+                const result = applyCellAction(currentBoard, action);
+                currentBoard = result.board;
+                if (result.minesPlaced) {
+                    minesWerePlaced = true;
+                }
+            }
+        }
+
+        // Update local state
+        if (minesWerePlaced && !minesPlaced) {
+            setMinesPlaced(true);
+            setIsFirstClick(false);
+        }
+
+        setLocalBoard(currentBoard);
+        setFlagsCount(countFlags(currentBoard));
+
+        // Sync updated board to network storage
+        syncBoardToNetwork(currentBoard);
+
+        // Clear processed actions
+        clearPendingActions();
+
+        // Check win/lose conditions after applying all actions
+        if (minesWerePlaced) {
+            const hasRevealedMine = currentBoard.some(row =>
+                row.some(cell =>
+                    cell.status === CELL_STATUS.REVEALED && cell.isMine
+                )
+            );
+
+            if (hasRevealedMine) {
+                setTimeout(() => handleGameOver(), 0);
+            } else if (checkWinCondition(currentBoard)) {
+                setTimeout(() => handleWin(), 0);
+            }
+        }
+    }, [pendingActions]);
 
     /**
      * Cursor tracking event listeners setup and cleanup
@@ -412,36 +469,36 @@ const Minesweeper = ({ config, board: networkBoard, onGameUpdate, onGameOver, on
     return (
         <div className="minesweeper">
             <div className="header-wrapper">
-                <GameHeader 
+                <GameHeader
                     gameStatus={gameStatus}
                     flagsCount={flagsCount}
                     totalMines={config.bombs}
                     timer={timer}
                 />
             </div>
-            <div 
+            <div
                 ref={containerRef}
                 className={`game-scroll-container ${isDragging ? 'dragging' : ''}`}
                 onMouseDown={handleMouseDown}
                 onScroll={handleScroll}
             >
-                <div 
+                <div
                     ref={gameContentRef}
                     className="game-content"
                 >
-                    <div 
+                    <div
                         ref={boardRef}
                         className="board-container"
                         onMouseMove={handleMouseMove}
                         onMouseLeave={() => onCursorMove({ isInCanvas: false })}
                     >
-                        <Board 
+                        <Board
                             board={localBoard}
                             onCellClick={handleCellClick}
                             onCellRightClick={handleCellRightClick}
                             gameStatus={gameStatus}
                         />
-                        <CursorOverlay 
+                        <CursorOverlay
                             cursors={peerCursors}
                             connectedUsers={connectedUsers}
                         />

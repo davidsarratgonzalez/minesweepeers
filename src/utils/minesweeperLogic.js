@@ -314,4 +314,47 @@ export const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
+/**
+ * Action type constants for cell-level network messages.
+ * Used instead of full board state broadcasts to avoid race conditions
+ * when multiple peers act simultaneously.
+ */
+export const CELL_ACTION_TYPES = {
+    FIRST_REVEAL: 'FIRST_REVEAL',
+    REVEAL: 'REVEAL',
+    FLAG: 'FLAG',
+};
+
+/**
+ * Applies a single cell action received from a network peer to the local board.
+ *
+ * @param {Array<Array<Object>>} board - The current local game board
+ * @param {Object} action - The cell action to apply
+ * @param {string} action.action - One of CELL_ACTION_TYPES
+ * @param {number} action.x - X coordinate of the target cell
+ * @param {number} action.y - Y coordinate of the target cell
+ * @param {Array<Array<Object>>} [action.board] - Full board blueprint (only for FIRST_REVEAL)
+ * @returns {{ board: Array<Array<Object>>, minesPlaced: boolean }} Updated board and mine placement flag
+ */
+export const applyCellAction = (board, action) => {
+    switch (action.action) {
+        case CELL_ACTION_TYPES.FIRST_REVEAL: {
+            const boardWithMines = applyBoardBlueprint(board, action.board);
+            const revealedBoard = revealCell(boardWithMines, action.x, action.y);
+            return { board: revealedBoard, minesPlaced: true };
+        }
+        case CELL_ACTION_TYPES.REVEAL: {
+            const revealedBoard = revealCell(board, action.x, action.y);
+            return { board: revealedBoard, minesPlaced: false };
+        }
+        case CELL_ACTION_TYPES.FLAG: {
+            const flaggedBoard = toggleFlag(board, action.x, action.y);
+            return { board: flaggedBoard, minesPlaced: false };
+        }
+        default:
+            console.warn('Unknown cell action type:', action.action);
+            return { board, minesPlaced: false };
+    }
 }; 

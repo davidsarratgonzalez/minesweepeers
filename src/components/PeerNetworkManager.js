@@ -40,12 +40,14 @@ const PeerNetworkManager = () => {
         updateGameConfig,
         gameState,
         startGame,
-        updateGameState,
         endGame,
-        network,
         peerCursors,
         broadcastCursorPosition,
         addSystemMessage,
+        pendingActions,
+        broadcastCellAction,
+        clearPendingActions,
+        syncBoard,
     } = usePeerNetwork();
     const [copyFeedback, setCopyFeedback] = useState(false);
     const [connectionError, setConnectionError] = useState('');
@@ -139,17 +141,20 @@ const PeerNetworkManager = () => {
     };
 
     /**
-     * Synchronizes game board state across network
-     * @param {Array} newBoard - Updated game board state
+     * Broadcasts a cell action to all connected peers.
+     * @param {Object} action - Cell action to broadcast { action, x, y, board? }
      */
-    const handleGameUpdate = (newBoard) => {
-        if (!gameState) return;
-        
-        updateGameState({
-            ...gameState,
-            board: newBoard,
-            lastUpdate: Date.now()
-        });
+    const handleCellAction = (action) => {
+        broadcastCellAction(action);
+    };
+
+    /**
+     * Syncs the current board blueprint to PeerNetwork storage.
+     * Does NOT broadcast -- used only so new-peer joins get the latest board.
+     * @param {Object} boardBlueprint - The current board blueprint
+     */
+    const handleSyncBoard = (boardBlueprint) => {
+        syncBoard(boardBlueprint);
     };
 
     /**
@@ -269,10 +274,13 @@ const PeerNetworkManager = () => {
 
             <div className="game-container">
                 {gameState ? (
-                    <Minesweeper 
+                    <Minesweeper
                         config={gameState.config}
                         board={gameState.board}
-                        onGameUpdate={handleGameUpdate}
+                        onCellAction={handleCellAction}
+                        onSyncBoard={handleSyncBoard}
+                        pendingActions={pendingActions}
+                        clearPendingActions={clearPendingActions}
                         onGameOver={handleGameOver}
                         onCursorMove={handleCursorMove}
                         peerCursors={peerCursors}

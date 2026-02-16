@@ -26,6 +26,7 @@ const usePeerNetwork = (config = {}) => {
     const [gameConfig, setGameConfig] = useState(null);
     const [gameState, setGameState] = useState(null);
     const [peerCursors, setPeerCursors] = useState({});
+    const [pendingActions, setPendingActions] = useState([]);
 
     /**
      * Initializes the peer network with user information.
@@ -125,6 +126,10 @@ const usePeerNetwork = (config = {}) => {
                 }
                 return { ...prev, [peerId]: position };
             });
+        });
+
+        network.onCellAction((action) => {
+            setPendingActions(prev => [...prev, action]);
         });
 
         // Cleanup function for network disconnection
@@ -236,6 +241,18 @@ const usePeerNetwork = (config = {}) => {
         network.addSystemMessage(content);
     }, [network]);
 
+    const broadcastCellAction = useCallback((action) => {
+        network.broadcastCellAction(action);
+    }, [network]);
+
+    const clearPendingActions = useCallback(() => {
+        setPendingActions([]);
+    }, []);
+
+    const syncBoard = useCallback((boardBlueprint) => {
+        network.setCurrentBoard(boardBlueprint);
+    }, [network]);
+
     return {
         peerId,
         isReady,
@@ -256,6 +273,10 @@ const usePeerNetwork = (config = {}) => {
         peerCursors,
         broadcastCursorPosition,
         addSystemMessage,
+        pendingActions,
+        broadcastCellAction,
+        clearPendingActions,
+        syncBoard,
     };
 };
 

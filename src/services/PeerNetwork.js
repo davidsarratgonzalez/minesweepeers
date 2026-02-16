@@ -1,5 +1,4 @@
 import Peer from 'peerjs';
-import { createBoardBlueprint } from '../utils/minesweeperLogic';
 
 // Network constants
 const HEARTBEAT_INTERVAL = 5000; // Send heartbeat every 5 seconds
@@ -87,6 +86,7 @@ class PeerNetwork {
         this.onGameStartedCallback = null;
         this.onGameOverCallback = null;
         this.onCursorUpdateCallback = null;
+        this.onCellActionCallback = null;
 
         // Heartbeat tracking
         this.heartbeatInterval = null;
@@ -248,6 +248,9 @@ class PeerNetwork {
                     break;
                 case 'CURSOR_UPDATE':
                     this.handleCursorUpdate(conn.peer, data.position);
+                    break;
+                case 'CELL_ACTION':
+                    this.handleCellAction(data.action);
                     break;
                 case 'DISCONNECT':
                     this.handlePeerDisconnectMessage(data.peerId, data.reason);
@@ -726,6 +729,42 @@ class PeerNetwork {
     }
 
     /**
+     * Broadcasts a cell action to all connected peers.
+     * Used during gameplay instead of full board state broadcasts.
+     * @param {Object} action - The cell action to broadcast { action, x, y, board? }
+     */
+    broadcastCellAction(action) {
+        const message = {
+            type: 'CELL_ACTION',
+            action
+        };
+
+        this.connections.forEach(conn => {
+            try {
+                conn.send(message);
+            } catch (error) {
+                console.warn('Failed to send cell action:', error);
+            }
+        });
+    }
+
+    /**
+     * Updates the stored game board state without broadcasting.
+     * Called after applying cell actions locally so that new peers
+     * joining mid-game receive the correct board.
+     * @param {Object} boardBlueprint - The current board blueprint
+     */
+    setCurrentBoard(boardBlueprint) {
+        if (this.currentGameState) {
+            this.currentGameState = {
+                ...this.currentGameState,
+                board: boardBlueprint,
+                lastUpdate: Date.now()
+            };
+        }
+    }
+
+    /**
      * Broadcasts game over state to all peers
      * @param {string|null} reason - Reason for game ending
      */
@@ -800,6 +839,25 @@ class PeerNetwork {
         if (this.onGameOverCallback) {
             this.onGameOverCallback(reason);
         }
+    }
+
+    /**
+     * Handles a cell action message received from a peer.
+     * @private
+     * @param {Object} action - The cell action { action, x, y, board? }
+     */
+    handleCellAction(action) {
+        if (this.onCellActionCallback) {
+            this.onCellActionCallback(action);
+        }
+    }
+
+    /**
+     * Sets callback for cell action events from peers.
+     * @param {Function} callback - Function called when a cell action is received
+     */
+    onCellAction(callback) {
+        this.onCellActionCallback = callback;
     }
 
     /**
